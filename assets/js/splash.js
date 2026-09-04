@@ -27,6 +27,27 @@ window.Splash = (function () {
     body.classList.add('run');
   }
 
+  /* PWA yang dibuka lagi tanpa force-close tidak me-reload halaman, jadi splash
+     tidak pernah jalan lagi. Blok ini memutar versi cepatnya saat app kembali ke
+     depan setelah lebih dari RESUME_AFTER milidetik.
+     Tiga pemicu dipasang karena tiap platform beda: iOS standalone paling sering
+     mengirim pageshow, Android mengirim visibilitychange, desktop mengirim focus. */
+  var RESUME_AFTER = 20000;
+  var awayAt = 0;
+
+  function markAway() { if (!awayAt) awayAt = Date.now(); }
+  function maybeResume() {
+    if (awayAt && Date.now() - awayAt > RESUME_AFTER) play(true);
+    awayAt = 0;
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) markAway(); else maybeResume();
+  });
+  window.addEventListener('blur', markAway);
+  window.addEventListener('focus', maybeResume);
+  window.addEventListener('pageshow', function (e) { if (e.persisted) { markAway(); awayAt = 1; play(true); } });
+
   return {
     start(onDone) {
       let warm = false;

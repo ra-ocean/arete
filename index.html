@@ -4,11 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Areté</title>
-<meta name="description" content="Personal tracker — muscle building, running performance, recovery.">
+<meta name="description" content="Personal tracker — recovery, nutrisi, body progress, performa lari & kekuatan.">
 <meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./assets/icons/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="./assets/icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="./assets/icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="./assets/icons/icon-120.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Areté">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,7 +21,6 @@
 </head>
 <body>
 
-<!-- ===== SPLASH ===== -->
 <div class="splash" id="splash">
  <div class="stage-wrap">
   <div class="stage">
@@ -32,193 +34,277 @@
  </div>
 </div>
 
-<!-- ===== APP ===== -->
 <div class="app">
  <div class="frame">
 
-  <div class="topbar">
-    <div class="mark">
-      <svg viewBox="0 0 520 300" width="46" height="27" aria-hidden="true">
-        <rect x="40" y="40" width="440" height="220" rx="110" ry="110" fill="none" stroke="currentColor" stroke-width="18"/>
-        <circle cx="84.9" cy="60.9" r="45" fill="currentColor"/>
-        <circle cx="435.1" cy="239.1" r="45" fill="currentColor"/>
-      </svg>
-      <b>aret&#x113;</b>
+  <header class="topbar">
+    <button class="avatar" id="avatar" type="button" aria-label="Buka profil">
+      <img id="avatar-img" alt="" hidden>
+      <span id="avatar-fallback">R</span>
+    </button>
+    <div class="head-txt">
+      <div class="greet" id="greet">Selamat pagi</div>
+      <div class="date" id="date">—</div>
     </div>
-    <div class="stamp" id="clock">—</div>
-  </div>
+    <div class="countdown" id="countdown" hidden><b id="cd-n">—</b><span>hari ke 10K</span></div>
+  </header>
 
   <main>
 
-   <!-- ---------- HARI INI ---------- -->
-   <div class="view on" data-view="today">
-     <h1 class="screen">Hari ini</h1>
-     <p class="screen-sub" id="today-label">—</p>
+  <!-- ============ BERANDA ============ -->
+  <section class="view on" data-view="home">
 
-     <div class="stats">
-       <div class="stat"><div class="k">10K</div><div class="v"><span id="s-race">—</span><span class="u" id="s-race-u"></span></div></div>
-       <div class="stat"><div class="k">Berat</div><div class="v"><span id="s-weight">—</span><span class="u" id="s-weight-u"></span></div></div>
-       <div class="stat"><div class="k">Protein</div><div class="v"><span id="s-prot">—</span><span class="u" id="s-prot-u"></span></div></div>
-     </div>
+    <div class="card readiness" id="c-readiness">
+      <div class="card-head"><h2>Kesiapan hari ini</h2><button class="link" data-open-log="badan" type="button">Isi</button></div>
+      <div id="readiness-body"></div>
+    </div>
 
-     <div class="card">
-       <h2>Catat cepat</h2>
+    <div class="card" id="c-fit">
+      <div class="card-head"><h2>Body fit</h2><span class="src" id="fit-src"></span></div>
+      <div id="fit-body"></div>
+    </div>
 
-       <div class="row">
-         <div class="field">
-           <label for="f-weight">Berat (kg)</label>
-           <input id="f-weight" type="number" inputmode="decimal" step="0.1" min="30" max="200" placeholder="70.0">
-         </div>
-         <div class="field">
-           <label for="f-bf">Body fat (%)</label>
-           <input id="f-bf" type="number" inputmode="decimal" step="0.1" min="3" max="50" placeholder="19">
-         </div>
-       </div>
+    <div class="card" id="c-plan">
+      <div class="card-head"><h2>Rencana hari ini</h2><button class="link" id="plan-detail" type="button">Detail</button></div>
+      <div id="plan-body"></div>
+    </div>
 
-       <div class="row">
-         <div class="field">
-           <label for="f-cal">Kalori</label>
-           <input id="f-cal" type="number" inputmode="numeric" step="10" min="0" max="8000" placeholder="2200">
-         </div>
-         <div class="field">
-           <label for="f-protein">Protein (g)</label>
-           <input id="f-protein" type="number" inputmode="numeric" step="1" min="0" max="400" placeholder="126">
-         </div>
-       </div>
+    <div class="card" id="c-lastrun">
+      <div class="card-head"><h2>Lari terakhir</h2><span class="src">intervals.icu</span></div>
+      <div id="lastrun-body"></div>
+    </div>
 
-       <div class="field">
-         <label for="f-sleep">Tidur (jam)</label>
-         <input id="f-sleep" type="number" inputmode="decimal" step="0.25" min="0" max="16" placeholder="7">
-       </div>
+    <div class="card insight" id="c-insight">
+      <div class="card-head"><h2>Insight hari ini</h2></div>
+      <div id="insight-body"></div>
+    </div>
 
-       <div class="field">
-         <label>Latihan hari ini</label>
-         <div class="toggles">
-           <button class="tg" id="t-st" type="button" aria-pressed="false">Strength</button>
-           <button class="tg" id="t-run" type="button" aria-pressed="false">Lari</button>
-         </div>
-       </div>
+  </section>
 
-       <div class="field" hidden>
-         <label for="f-dist">Jarak lari (km)</label>
-         <input id="f-dist" type="number" inputmode="decimal" step="0.1" min="0" max="100" placeholder="5.0">
-       </div>
+  <!-- ============ TUBUH ============ -->
+  <section class="view" data-view="body">
+    <nav class="subtabs" aria-label="Bagian tubuh">
+      <button data-sub="recovery" aria-current="true" type="button">Recovery</button>
+      <button data-sub="nutrition" type="button">Nutrisi</button>
+      <button data-sub="progress" type="button">Body Progress</button>
+    </nav>
 
-       <div class="field">
-         <label>Vitamin</label>
-         <div class="toggles">
-           <button class="tg" id="t-vam" type="button" aria-pressed="false">Pagi</button>
-           <button class="tg" id="t-vpm" type="button" aria-pressed="false">Malam</button>
-         </div>
-       </div>
+    <div class="panel on" data-panel="recovery">
+      <div class="stats" id="rec-stats"></div>
+      <div class="card"><div class="card-head"><h2>Tidur (jam)</h2></div><div id="chart-sleep"></div></div>
+      <div class="card"><div class="card-head"><h2>HRV (ms)</h2></div><div id="chart-hrv"></div></div>
+      <div class="card"><div class="card-head"><h2>Resting HR (bpm)</h2></div><div id="chart-rhr"></div></div>
+      <p class="note-sm">Zepp tidak punya API resmi, jadi tiga angka ini diketik manual. Buka Zepp tiap pagi, salin tidur, HRV, dan resting HR — sekitar 15 detik.</p>
+    </div>
 
-       <div class="field">
-         <label for="f-notes">Catatan</label>
-         <textarea id="f-notes" placeholder="Badan terasa gimana? Ada yang mengganggu?"></textarea>
-       </div>
+    <div class="panel" data-panel="nutrition">
+      <div class="stats" id="nut-stats"></div>
+      <div class="card"><div class="card-head"><h2>Kalori (kkal)</h2></div><div id="chart-cal"></div></div>
+      <div class="card"><div class="card-head"><h2>Protein (g)</h2></div><div id="chart-prot"></div></div>
+      <div class="card"><div class="card-head"><h2>7 hari terakhir</h2></div><div class="loglist" id="nut-list"></div></div>
+    </div>
 
-       <button class="btn" id="save" type="button">Simpan hari ini</button>
-       <div class="saved" id="saved"></div>
-     </div>
-   </div>
+    <div class="panel" data-panel="progress">
+      <div class="stats" id="prog-stats"></div>
+      <div class="card"><div class="card-head"><h2>Berat badan (kg)</h2></div><div id="chart-weight"></div></div>
+      <div class="card"><div class="card-head"><h2>Body fat (%)</h2></div><div id="chart-bf"></div></div>
+      <div class="card">
+        <div class="card-head"><h2>Foto progress</h2><button class="link" data-open-log="foto" type="button">Tambah</button></div>
+        <div id="photo-grid"></div>
+      </div>
+    </div>
+  </section>
 
-   <!-- ---------- PROGRES ---------- -->
-   <div class="view" data-view="progress">
-     <h1 class="screen">Progres</h1>
-     <p class="screen-sub">Tren 30 catatan terakhir.</p>
+  <!-- ============ PERFORMA ============ -->
+  <section class="view" data-view="perf">
+    <nav class="subtabs" aria-label="Jenis performa">
+      <button data-sub="run" aria-current="true" type="button">Lari</button>
+      <button data-sub="strength" type="button">Kekuatan</button>
+      <button data-sub="other" type="button">Lainnya</button>
+    </nav>
 
-     <div class="stats">
-       <div class="stat"><div class="k">Runtun</div><div class="v"><span id="s-streak">0</span><span class="u" id="s-streak-u">hari</span></div></div>
-       <div class="stat"><div class="k">Total</div><div class="v"><span id="s-logged">0</span><span class="u">catatan</span></div></div>
-       <div class="stat"><div class="k">ST 7 hari</div><div class="v"><span id="s-st">0</span><span class="u">sesi</span></div></div>
-     </div>
+    <div class="panel on" data-panel="run">
+      <div class="stats" id="run-stats"></div>
+      <div class="card"><div class="card-head"><h2>Aktivitas lari</h2><span class="src">intervals.icu</span></div><div id="run-list"></div></div>
+    </div>
 
-     <div class="card">
-       <h2>Berat badan (kg)</h2>
-       <div id="chart-weight"></div>
-     </div>
+    <div class="panel" data-panel="strength">
+      <div class="stats" id="st-stats"></div>
+      <div class="card"><div class="card-head"><h2>Minggu ini</h2></div><div id="st-week"></div></div>
+      <div class="card"><div class="card-head"><h2>Program</h2><button class="link" id="open-program" type="button">Lihat semua</button></div><div id="st-program"></div></div>
+    </div>
 
-     <div class="card">
-       <h2>Kalori (kcal)</h2>
-       <div id="chart-cal"></div>
-     </div>
+    <div class="panel" data-panel="other">
+      <div class="card"><div class="card-head"><h2>Olahraga lain</h2><span class="src">intervals.icu</span></div><div id="other-list"></div></div>
+    </div>
+  </section>
 
-     <div class="card">
-       <h2>Riwayat</h2>
-       <div class="loglist" id="history"></div>
-     </div>
-   </div>
+  <!-- ============ PROFIL ============ -->
+  <section class="view" data-view="profile">
+    <div class="card">
+      <div class="card-head"><h2>Profil</h2></div>
+      <div class="field"><label for="p-name">Nama panggilan</label><input id="p-name" type="text" placeholder="Rausyan"></div>
+      <div class="btnrow">
+        <label class="btn ghost sm" for="p-photo">Ganti foto profil<input id="p-photo" type="file" accept="image/*" hidden></label>
+        <button class="btn ghost sm" id="p-save" type="button">Simpan</button>
+      </div>
+      <div class="msg" id="p-msg"></div>
+    </div>
 
-   <!-- ---------- LATIHAN ---------- -->
-   <div class="view" data-view="training">
-     <h1 class="screen">Latihan</h1>
-     <p class="screen-sub">Weekly strength training — di luar sesi offline dengan coach.</p>
-     <div class="stub">
-       <h3>Belum dibangun</h3>
-       <p>Ini item <strong>B3</strong> di backlog: grid 7 hari, sesi coach ditandai read-only, plus tracking progressive overload yang fokus ke volume dan endurance — bukan 1RM.</p>
-     </div>
-   </div>
+    <div class="card">
+      <div class="card-head"><h2>Target</h2></div>
+      <div class="row">
+        <div class="field"><label for="g-race">Tanggal lomba</label><input id="g-race" type="date"></div>
+        <div class="field"><label for="g-prot">Protein (g)</label><input id="g-prot" type="number" inputmode="numeric"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="g-cal">Kalori (kkal)</label><input id="g-cal" type="number" inputmode="numeric"></div>
+        <div class="field"><label for="g-sleep">Tidur (jam)</label><input id="g-sleep" type="number" step="0.5" inputmode="decimal"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="g-bf">Target body fat (%)</label><input id="g-bf" type="number" step="0.5" inputmode="decimal"></div>
+        <div class="field"><label for="g-tdee">TDEE bawah</label><input id="g-tdee" type="number" inputmode="numeric"></div>
+      </div>
+      <button class="btn ghost sm" id="g-save" type="button">Simpan target</button>
+      <div class="msg" id="g-msg"></div>
+    </div>
 
-   <!-- ---------- LAINNYA ---------- -->
-   <div class="view" data-view="more">
-     <h1 class="screen">Lainnya</h1>
-     <p class="screen-sub">Cadangan data dan tampilan.</p>
+    <div class="card">
+      <div class="card-head"><h2>Sambungan data</h2></div>
+      <div id="conn-body"></div>
+      <button class="btn ghost sm" id="conn-refresh" type="button">Tarik ulang</button>
+    </div>
 
-     <div class="card">
-       <h2>Cadangan</h2>
-       <p style="margin:0 0 14px;font-size:13.5px;color:var(--fg-2);line-height:1.6">
-         Di Fase 0 semua data tersimpan di HP ini saja. Ekspor rutin supaya tidak hilang kalau ganti HP atau hapus data browser.
-       </p>
-       <div class="btnrow">
-         <button class="btn ghost sm" id="export" type="button">Ekspor JSON</button>
-         <label class="btn ghost sm" for="import" style="text-align:center">Pulihkan
-           <input id="import" type="file" accept="application/json,.json" hidden>
-         </label>
-       </div>
-       <div class="saved" id="io-msg"></div>
-     </div>
+    <div class="card">
+      <div class="card-head"><h2>Cadangan</h2></div>
+      <p class="note-sm">Datamu ada di browser HP ini saja (IndexedDB, database <code>arete</code>) — bukan di server, bukan di GitHub. Ekspor rutin sampai Supabase masuk di Fase 1.</p>
+      <div class="btnrow">
+        <button class="btn ghost sm" id="export" type="button">Ekspor JSON</button>
+        <label class="btn ghost sm" for="import">Pulihkan<input id="import" type="file" accept="application/json,.json" hidden></label>
+      </div>
+      <div class="msg" id="io-msg"></div>
+    </div>
 
-     <div class="card">
-       <h2>Tampilan</h2>
-       <p style="margin:0 0 14px;font-size:13.5px;color:var(--fg-2);line-height:1.6">
-         Otomatis: putih jam 06.00–17.59, hitam jam 18.00–05.59.
-       </p>
-       <button class="btn ghost sm" id="theme-cycle" type="button">Tema: otomatis</button>
-     </div>
+    <div class="card">
+      <div class="card-head"><h2>Tampilan</h2></div>
+      <p class="note-sm">Otomatis: putih 06.00–17.59, hitam 18.00–05.59.</p>
+      <button class="btn ghost sm" id="theme-cycle" type="button">Tema: otomatis</button>
+    </div>
 
-     <div class="card">
-       <h2>Versi</h2>
-       <p style="margin:0;font-size:13.5px;color:var(--fg-2);line-height:1.6">
-         Areté Fase 0 · PWA statis, data lokal.<br>
-         Fase 1 berikutnya: Supabase untuk sync dan foto progress.
-       </p>
-     </div>
-   </div>
+    <div class="card">
+      <div class="card-head"><h2>Hapus data</h2></div>
+      <p class="note-sm">Menghapus di sini permanen. Ekspor dulu kalau ragu.</p>
+      <div class="btnrow">
+        <button class="btn ghost sm" id="wipe-today" type="button">Hapus catatan hari ini</button>
+        <button class="btn ghost sm danger" id="wipe-all" type="button">Hapus semua data</button>
+      </div>
+      <div class="msg" id="wipe-msg"></div>
+    </div>
+
+    <p class="ver">Areté · Fase 0 → 2 · data lokal + intervals.icu</p>
+  </section>
 
   </main>
  </div>
 </div>
 
-<nav class="nav">
+<!-- ============ NAV ============ -->
+<nav class="nav" aria-label="Navigasi utama">
  <ul>
-  <li><button data-go="today" type="button" aria-current="page">
-    <svg viewBox="0 0 24 24"><path d="M12 3v3M12 21v-3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5"/><circle cx="12" cy="12" r="4"/></svg>
-    Hari ini</button></li>
-  <li><button data-go="progress" type="button">
-    <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M7.5 15l3.5-4 3 2.5L20 8"/></svg>
-    Progres</button></li>
-  <li><button data-go="training" type="button">
-    <svg viewBox="0 0 24 24"><path d="M4 9v6M20 9v6M7 6.5v11M17 6.5v11M7 12h10"/></svg>
-    Latihan</button></li>
-  <li><button data-go="more" type="button">
-    <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
-    Lainnya</button></li>
+  <li><button data-go="home" type="button" aria-current="page">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5"/></svg>Beranda</button></li>
+  <li><button data-go="body" type="button">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.3"/><path d="M12 8v7M8 10h8M9.5 20l2.5-5 2.5 5"/></svg>Tubuh</button></li>
+  <li class="mid"><button id="log-btn" type="button" aria-label="Catat">
+    <span class="fab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/></svg></span>Catat</button></li>
+  <li><button data-go="perf" type="button">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16M7.5 15l3.5-4.5L14.5 13 20 7.5"/></svg>Performa</button></li>
+  <li><button data-go="profile" type="button">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.3"/><path d="M5 19.5c1.4-3.2 4-4.8 7-4.8s5.6 1.6 7 4.8"/></svg>Profil</button></li>
  </ul>
 </nav>
+
+<!-- ============ SHEET: CATAT ============ -->
+<div class="sheet" id="log-sheet" hidden>
+ <div class="scrim" data-close-sheet="log-sheet"></div>
+ <div class="sheet-body" role="dialog" aria-modal="true" aria-label="Catat hari ini">
+  <div class="grab"></div>
+  <div class="sheet-head">
+    <h2 id="sheet-date">Catat hari ini</h2>
+    <button class="link" data-close-sheet="log-sheet" type="button">Tutup</button>
+  </div>
+
+  <nav class="subtabs sheet-tabs" aria-label="Jenis catatan">
+    <button data-log="makan" aria-current="true" type="button">Makan</button>
+    <button data-log="latihan" type="button">Latihan</button>
+    <button data-log="badan" type="button">Badan</button>
+    <button data-log="foto" type="button">Foto</button>
+  </nav>
+
+  <div class="log-panel on" data-log-panel="makan">
+    <div class="row">
+      <div class="field"><label for="f-cal">Kalori (kkal)</label><input id="f-cal" type="number" inputmode="numeric" step="10" placeholder="2200"></div>
+      <div class="field"><label for="f-protein">Protein (g)</label><input id="f-protein" type="number" inputmode="numeric" placeholder="126"></div>
+    </div>
+    <div class="field"><label>Vitamin</label>
+      <div class="toggles"><button class="tg" id="t-vam" type="button" aria-pressed="false">Pagi</button><button class="tg" id="t-vpm" type="button" aria-pressed="false">Malam</button></div>
+    </div>
+  </div>
+
+  <div class="log-panel" data-log-panel="latihan">
+    <div class="field"><label>Selesai hari ini</label>
+      <div class="toggles"><button class="tg" id="t-st" type="button" aria-pressed="false">Strength</button><button class="tg" id="t-run" type="button" aria-pressed="false">Lari</button></div>
+    </div>
+    <div class="field" id="f-dist-wrap" hidden><label for="f-dist">Jarak lari (km)</label><input id="f-dist" type="number" inputmode="decimal" step="0.1" placeholder="5.0"></div>
+    <div class="field"><label>Daily-track</label>
+      <div class="toggles">
+        <button class="tg" id="t-abs" type="button" aria-pressed="false">Abs</button>
+        <button class="tg" id="t-calf" type="button" aria-pressed="false">Calf</button>
+        <button class="tg" id="t-hip" type="button" aria-pressed="false">Hip</button>
+      </div>
+    </div>
+    <div class="field"><label for="f-notes">Catatan</label><textarea id="f-notes" placeholder="Badan terasa gimana? Ada yang mengganggu?"></textarea></div>
+  </div>
+
+  <div class="log-panel" data-log-panel="badan">
+    <div class="row">
+      <div class="field"><label for="f-weight">Berat (kg)</label><input id="f-weight" type="number" inputmode="decimal" step="0.1" placeholder="70.0"></div>
+      <div class="field"><label for="f-bf">Body fat (%)</label><input id="f-bf" type="number" inputmode="decimal" step="0.1" placeholder="19"></div>
+    </div>
+    <p class="note-sm">Tiga angka di bawah disalin dari app Zepp.</p>
+    <div class="row">
+      <div class="field"><label for="f-sleep">Tidur (jam)</label><input id="f-sleep" type="number" inputmode="decimal" step="0.25" placeholder="7"></div>
+      <div class="field"><label for="f-hrv">HRV (ms)</label><input id="f-hrv" type="number" inputmode="numeric" placeholder="45"></div>
+    </div>
+    <div class="field"><label for="f-rhr">Resting HR (bpm)</label><input id="f-rhr" type="number" inputmode="numeric" placeholder="52"></div>
+  </div>
+
+  <div class="log-panel" data-log-panel="foto">
+    <p class="note-sm">Empat sudut, sekali seminggu, cahaya dan jarak diusahakan sama. Foto disimpan di HP ini saja.</p>
+    <div class="photo-slots" id="photo-slots"></div>
+  </div>
+
+  <button class="btn" id="save" type="button">Simpan</button>
+  <div class="msg" id="saved"></div>
+ </div>
+</div>
+
+<!-- ============ SHEET: PROGRAM ============ -->
+<div class="sheet" id="prog-sheet" hidden>
+ <div class="scrim" data-close-sheet="prog-sheet"></div>
+ <div class="sheet-body" role="dialog" aria-modal="true" aria-label="Program strength training">
+  <div class="grab"></div>
+  <div class="sheet-head"><h2 id="prog-title">Program</h2><button class="link" data-close-sheet="prog-sheet" type="button">Tutup</button></div>
+  <div id="prog-content"></div>
+ </div>
+</div>
 
 <script src="./assets/js/store.js"></script>
 <script src="./assets/js/theme.js"></script>
 <script src="./assets/js/splash.js"></script>
+<script src="./assets/js/plan.js"></script>
+<script src="./assets/js/insight.js"></script>
+<script src="./assets/js/api.js"></script>
 <script src="./assets/js/ui.js"></script>
 <script src="./assets/js/app.js"></script>
 </body>

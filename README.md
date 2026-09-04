@@ -26,6 +26,45 @@ Setelah terpasang, app jalan offline dan punya ikon sendiri.
 > Pages gratis. Tidak ada data pribadi di dalam kode — semua catatan tersimpan
 > di HP, bukan di repo — jadi repo public aman.
 
+## Pindah ke Vercel (Fase 2) — supaya intervals.icu bisa masuk
+
+GitHub Pages hanya melayani file statis, jadi tidak bisa menyimpan API key.
+Vercel melayani file statis DAN menjalankan `api/intervals.js` di server, dari satu
+domain yang sama — tidak ada masalah CORS, dan key-nya tidak pernah sampai ke browser.
+
+1. Buka **vercel.com** → **Sign up** → **Continue with GitHub**.
+2. **Add New… → Project** → pilih repo `arete` → **Import**.
+3. Framework Preset biarkan **Other**. Build & Output Settings tidak usah diisi.
+   Repo ini tidak punya build step — Vercel menyajikan file apa adanya.
+4. Sebelum menekan Deploy, buka **Environment Variables** dan isi dua ini:
+
+   | Name | Value |
+   |---|---|
+   | `INTERVALS_API_KEY` | API key dari intervals.icu → Settings → Developer |
+   | `INTERVALS_ATHLETE_ID` | ID atlet, bentuknya `i123456` |
+
+5. **Deploy.** Alamatnya jadi `https://arete-xxxx.vercel.app`.
+6. Setelah deploy pertama, tambahkan satu variable lagi lalu redeploy:
+
+   | Name | Value |
+   |---|---|
+   | `ALLOWED_ORIGIN` | alamat Vercel kamu, mis. `https://arete-xxxx.vercel.app` |
+
+Mulai sekarang setiap kali kamu upload file baru ke GitHub, Vercel deploy sendiri.
+Tidak perlu klik apa-apa lagi.
+
+### Yang perlu diketahui sebelum pindah
+
+- **Data lama tidak ikut.** IndexedDB terikat ke alamat situs. Data di
+  `ra-ocean.github.io` tidak muncul di `arete-xxxx.vercel.app`. Kalau sudah ada
+  catatan yang sayang hilang: Profil → Ekspor JSON di situs lama, lalu Pulihkan di
+  situs baru.
+- **GitHub Pages boleh dibiarkan hidup** sebagai cadangan, tapi pakai satu saja
+  sehari-hari — datanya tidak nyambung antar dua alamat.
+- **Batas keamanan endpoint.** `ALLOWED_ORIGIN` menahan pemanggilan dari situs lain
+  lewat browser, tapi tidak menahan curl yang memalsukan header. API key aman di
+  server; yang bisa terbaca orang yang menebak URL hanyalah angka latihan.
+
 ## Menjalankan di komputer
 
 `file://` tidak bisa dipakai karena service worker butuh HTTP. Jalankan server statis apa saja:
