@@ -42,6 +42,9 @@ export default async function handler(req, res) {
 
   const what = (req.query.what || 'wellness').toString();
   const days = Math.min(parseInt(req.query.days, 10) || 42, 180);
+  /* ?raw=1 mengembalikan payload apa adanya dari intervals.icu.
+     Dipakai untuk mendiagnosis field yang hilang — API key tetap di server. */
+  const raw = req.query.raw === '1';
 
   const newest = new Date();
   const oldest = new Date(Date.now() - days * 86400000);
@@ -71,8 +74,8 @@ export default async function handler(req, res) {
     }
 
     const data = await r.json();
-    res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
-    return res.status(200).json(slim(what, data));
+    res.setHeader('Cache-Control', raw ? 'no-store' : 's-maxage=900, stale-while-revalidate=3600');
+    return res.status(200).json(raw ? data : slim(what, data));
   } catch (e) {
     return res.status(502).json({ error: 'fetch_failed', message: String(e).slice(0, 300) });
   }
@@ -84,14 +87,23 @@ function slim(what, data) {
   if (!Array.isArray(data)) return data;
 
   if (what === 'wellness') {
+    /* intervals.icu punya DUA field HRV: `hrv` (rMSSD) dan `hrvSDNN`.
+       Sumber yang berbeda mengisi field yang berbeda — Apple Health memakai SDNN.
+       Dibaca dua-duanya, kalau tidak nanti HRV terlihat kosong padahal ada. */
     return data.map(d => ({
       date: d.id,
       ctl: d.ctl, atl: d.atl,
       form: (d.ctl != null && d.atl != null) ? +(d.ctl - d.atl).toFixed(1) : null,
-      rhr: d.restingHR, hrv: d.hrv,
+      rhr: d.restingHR ?? d.avgSleepingHR ?? null,
+      hrv: d.hrv ?? d.hrvSDNN ?? null,
+      hrv_kind: d.hrv != null ? 'rMSSD' : (d.hrvSDNN != null ? 'SDNN' : null),
       sleep_h: d.sleepSecs != null ? +(d.sleepSecs / 3600).toFixed(1) : null,
       sleep_score: d.sleepScore,
-      weight: d.weight
+      readiness: d.readiness,
+      spo2: d.spO2,
+      steps: d.steps,
+      weight: d.weight,
+      body_fat: d.bodyFat
     })).filter(d => d.ctl != null || d.rhr != null || d.hrv != null || d.sleep_h != null);
   }
 

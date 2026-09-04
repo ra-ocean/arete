@@ -13,6 +13,28 @@
   let today = UI.todayKey();
 
   const logOf = k => (logs.find(l => l.key === k) || {}).value || {};
+
+  /* Recovery bisa datang dari dua arah: diketik manual dari Zepp, atau ikut
+     masuk lewat intervals.icu kalau jam/ring-nya tersambung ke sana.
+     Yang diketik manual selalu menang — itu yang paling sengaja dimasukkan. */
+  function wellnessMap() {
+    const m = {};
+    if (wellness && wellness.ok) wellness.data.forEach(d => { m[d.date] = d; });
+    return m;
+  }
+  function mergedRecovery() {
+    const wm = wellnessMap();
+    const keys = [...new Set(logs.map(l => l.key).concat(Object.keys(wm)))].sort();
+    return keys.map(k => {
+      const l = logOf(k), w = wm[k] || {};
+      return {
+        key: k,
+        sleep: l.sleep != null ? l.sleep : (w.sleep_h ?? null),
+        hrv:   l.hrv   != null ? l.hrv   : (w.hrv ?? null),
+        rhr:   l.rhr   != null ? l.rhr   : (w.rhr ?? null)
+      };
+    });
+  }
   const median = a => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
   const series = (field, n) => logs.slice(-(n || 30)).filter(l => l.value[field] != null)
                                    .map(l => ({ v: l.value[field], label: UI.shortDate(l.key).dm }));
@@ -21,18 +43,24 @@
      Gabungan tidur, HRV, dan resting HR terhadap baseline 30 hari sendiri.
      Komponen yang kosong tidak ditebak — bobotnya dibagi ulang ke yang ada. */
   function readiness() {
-    const t = logOf(today);
-    const hist = logs.slice(-30);
-    const pick = f => t[f] != null ? t[f]
-      : (hist.filter(l => l.value[f] != null).slice(-1)[0] || { value: {} }).value[f];
-
+    const rec = mergedRecovery();
+    const hist = rec.slice(-30);
+    const cur = rec.filter(r => r.key <= today);
+    /* Angka "hari ini" boleh diambil dari hari terakhir yang ada isinya —
+       data recovery sering baru masuk siang, dan kemarin masih relevan pagi ini. */
+    const pick = f => {
+      const t = rec.find(r => r.key === today);
+      if (t && t[f] != null) return t[f];
+      const back = cur.filter(r => r[f] != null).slice(-1)[0];
+      return back ? back[f] : null;
+    };
     const sleep = pick('sleep'), hrv = pick('hrv'), rhr = pick('rhr');
-    const hrvHist = hist.map(l => l.value.hrv).filter(v => v != null);
-    const rhrHist = hist.map(l => l.value.rhr).filter(v => v != null);
+    const hrvHist = hist.map(r => r.hrv).filter(v => v != null);
+    const rhrHist = hist.map(r => r.rhr).filter(v => v != null);
 
-    /* HRV dan resting HR hanya berarti kalau dibandingkan ke kebiasaan sendiri.
+    /* HRV dan resting HR hanya berarti dibandingkan ke kebiasaan sendiri.
        Di bawah 5 catatan, baseline-nya adalah angka itu sendiri — perbandingan
-       jadi selalu "normal" dan skornya bohong. Jadi komponen itu dilewati dulu. */
+       jadi selalu "normal" dan skornya bohong. Komponen itu dilewati dulu. */
     const MIN = 5;
     const bHrv = hrvHist.length >= MIN ? median(hrvHist) : null;
     const bRhr = rhrHist.length >= MIN ? median(rhrHist) : null;
@@ -167,6 +195,7 @@
 
   /* ================= LARI TERAKHIR ================= */
   const RUNTYPE = t => /run/i.test(t || '');
+  const GYMTYPE = t => /weight|strength/i.test(t || '');
 
   function renderLastRun() {
     const el = $('#lastrun-body');
@@ -210,19 +239,30 @@
   }
 
   function renderBody() {
+    const wm = wellnessMap();
+    const autoCount = Object.values(wm).filter(d => d.rhr != null || d.sleep_h != null || d.hrv != null).length;
+    const rn = document.getElementById('rec-note');
+    if (rn) rn.textContent = autoCount
+      ? `${autoCount} hari data recovery sudah masuk otomatis dari intervals.icu. Angka yang kamu ketik manual selalu menimpa yang otomatis.`
+      : 'Zepp tidak punya API resmi. Sambungkan jam ke intervals.icu, atau ketik tidur, HRV, dan resting HR manual tiap pagi — sekitar 15 detik.';
     const t = logOf(today);
     const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
     const last7 = f => logs.slice(-7).map(l => l.value[f]).filter(v => v != null);
 
-    /* recovery */
-    const s7 = avg(last7('sleep'));
+    /* recovery — gabungan manual + intervals.icu */
+    const rec = mergedRecovery();
+    const rser = f => rec.slice(-30).filter(r => r[f] != null)
+                      .map(r => ({ v: r[f], label: UI.shortDate(r.key).dm }));
+    const r7 = f => rec.slice(-7).map(r => r[f]).filter(v => v != null);
+    const s7 = avg(r7('sleep'));
+    const rd = readiness();
     $('#rec-stats').innerHTML =
       statTile('Tidur 7 hari', s7 == null ? 'belum' : s7.toFixed(1), s7 == null ? '' : ' j', s7 == null) +
-      statTile('HRV', t.hrv == null ? 'belum' : t.hrv, t.hrv == null ? '' : ' ms', t.hrv == null) +
-      statTile('Resting HR', t.rhr == null ? 'belum' : t.rhr, t.rhr == null ? '' : ' bpm', t.rhr == null);
-    UI.lineChart($('#chart-sleep'), series('sleep'), { dp: 1, target: goals.sleep_target_h });
-    UI.lineChart($('#chart-hrv'),   series('hrv'),   { dp: 0 });
-    UI.lineChart($('#chart-rhr'),   series('rhr'),   { dp: 0 });
+      statTile('HRV', rd.hrv == null ? 'belum' : rd.hrv, rd.hrv == null ? '' : ' ms', rd.hrv == null) +
+      statTile('Resting HR', rd.rhr == null ? 'belum' : rd.rhr, rd.rhr == null ? '' : ' bpm', rd.rhr == null);
+    UI.lineChart($('#chart-sleep'), rser('sleep'), { dp: 1, target: goals.sleep_target_h });
+    UI.lineChart($('#chart-hrv'),   rser('hrv'),   { dp: 0, empty: 'Belum ada HRV. Cek di intervals.icu apakah jam/ring-mu benar-benar mengirim HRV — kalau di sana kosong juga, isi manual dari Zepp.' });
+    UI.lineChart($('#chart-rhr'),   rser('rhr'),   { dp: 0 });
 
     /* nutrisi */
     const c7 = avg(last7('cal')), p7 = avg(last7('protein'));
@@ -308,6 +348,26 @@
         <div class="tags">${w.st ? `<span class="tag${v.st ? ' on' : ''}">ST</span>` : `<span class="tag${v.run ? ' on' : ''}">LARI</span>`}<span class="tag${done === 3 ? ' on' : ''}">${done}/3</span></div></div>`;
     }).join('') + `</div>`;
 
+    /* Sesi gym yang tercatat di Hevy/Strava ikut sampai ke intervals.icu sebagai
+       WeightTraining. Ditampilkan di sini supaya durasi & load-nya tidak hilang. */
+    const gymEl = $('#st-gym');
+    if (gymEl) {
+      if (!activities || !activities.ok) gymEl.innerHTML = connectBlock(activities && activities.reason, true);
+      else {
+        const gyms = activities.data.filter(x => GYMTYPE(x.type)).sort((x, y) => x.start < y.start ? 1 : -1);
+        gymEl.innerHTML = gyms.length ? `<div class="loglist">` + gyms.slice(0, 10).map(x => {
+          const dt = UI.shortDate(x.date);
+          const bits = [];
+          if (x.moving_s) bits.push(`<b>${UI.dur(x.moving_s)}</b>`);
+          if (x.load != null) bits.push(`load <b>${x.load}</b>`);
+          if (x.avg_hr) bits.push(`${Math.round(x.avg_hr)} bpm`);
+          return `<div class="rowitem"><div class="d">${dt.dow}<br>${dt.dm}</div>
+            <div class="m">${bits.join(' · ') || x.name || '—'}</div><div></div></div>`;
+        }).join('') + `</div>`
+          : `<p class="empty-note">Belum ada sesi WeightTraining di intervals.icu. Kalau kamu log di Hevy dan Hevy tersambung ke Strava, sesinya akan muncul di sini.</p>`;
+      }
+    }
+
     const p = PLAN.today(UI.dow(today), today);
     $('#st-program').innerHTML = p.session
       ? `<p class="note-sm" style="margin:0 0 10px">${p.day.title} — ${p.session.length} latihan.</p>` +
@@ -319,9 +379,9 @@
     const ol = $('#other-list');
     if (!activities || !activities.ok) { ol.innerHTML = connectBlock(activities && activities.reason); }
     else {
-      const others = activities.data.filter(a => !RUNTYPE(a.type)).sort((a, b) => a.start < b.start ? 1 : -1);
+      const others = activities.data.filter(a => !RUNTYPE(a.type) && !GYMTYPE(a.type)).sort((a, b) => a.start < b.start ? 1 : -1);
       ol.innerHTML = others.length ? others.slice(0, 15).map(actCard).join('')
-        : `<p class="empty-note">Belum ada olahraga selain lari dalam 6 minggu terakhir.</p>`;
+        : `<p class="empty-note">Belum ada olahraga lain (di luar lari dan angkat beban) dalam 6 minggu terakhir.</p>`;
     }
   }
 
