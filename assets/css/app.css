@@ -536,7 +536,7 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
     -webkit-mask-position:center;mask-position:center;
     -webkit-mask-size:contain;mask-size:contain}
 .ic-coach{-webkit-mask-image:url('../icons/coach.png');mask-image:url('../icons/coach.png')}
-.ic-ai{-webkit-mask-image:url('../icons/aicoach.png');mask-image:url('../icons/aicoach.png')}
+.ic-flag{-webkit-mask-image:url('../icons/aicoach.png');mask-image:url('../icons/aicoach.png')}
 
 .iconbtn{flex:0 0 36px;width:36px;height:36px;border:0;border-radius:50%;background:var(--sunk);
          color:var(--fg-2);display:grid;place-items:center;cursor:pointer;transition:color .15s ease}
@@ -589,7 +589,14 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 
 /* ---- kalender performa ---- */
 .calgrid button{position:relative}
-.calgrid button .q{position:absolute;left:6px;right:6px;bottom:5px;height:3px;border-radius:2px;background:transparent}
+.calgrid button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+                padding:3px 0;aspect-ratio:1/1.12}
+.calgrid .dnum{font-size:10px;font-weight:600;color:var(--fg-3);line-height:1}
+.calgrid button.sel .dnum{color:inherit}
+.calgrid .q{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+            font-size:10.5px;font-weight:600;line-height:1;border:2px solid transparent;
+            color:var(--fg-3);font-variant-numeric:tabular-nums}
+.calgrid .q.on{border-color:var(--qc);color:var(--qc)}
 .callegend{display:flex;align-items:center;gap:10px;justify-content:center;margin:12px 0 4px;
            font-size:10px;color:var(--fg-3);font-weight:600;letter-spacing:.05em}
 .callegend i{width:16px;height:8px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:5px}
@@ -613,9 +620,17 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
                   border-radius:var(--r-pill);padding:7px 13px;font-size:11.5px;font-weight:600;cursor:pointer}
 .full-tabs button[aria-current]{background:var(--accent);color:#fff;border-color:var(--accent)}
 [data-mode="night"] .full-tabs button[aria-current]{color:#000}
-.full-tabs button.lay[aria-current]{background:transparent;border-color:currentColor}
-.full-tabs button.lay[aria-current][data-l="ctl"]{color:var(--c-ctl)}
-.full-tabs button.lay[aria-current][data-l="atl"]{color:var(--c-atl)}
+.full-tabs button.lay{background:transparent;border:1.5px dashed var(--rule);color:var(--fg-3);opacity:.75}
+.full-tabs button.lay::before{content:"";width:9px;height:9px;border-radius:3px;display:inline-block;
+  margin-right:7px;vertical-align:-1px;background:var(--rule)}
+.full-tabs button.lay[aria-current]{border-style:solid;border-color:currentColor;opacity:1}
+.full-tabs button.lay[aria-current]::before{background:currentColor}
+.full-tabs button.lay[data-l="ctl"][aria-current]{color:var(--c-ctl)}
+.full-tabs button.lay[data-l="atl"][aria-current]{color:var(--c-atl)}
+.full-tabs button.lay[data-l="form"][aria-current]{color:var(--c-form)}
+.full-tabs button.lay[data-l="ramp"][aria-current]{color:var(--c-ramp)}
+.ctlrow{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap}
+.ctlrow .cl{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-3)}
 .tip{position:absolute;z-index:3;pointer-events:none;background:var(--bg);border:1px solid var(--rule);
      border-radius:11px;padding:8px 11px;box-shadow:var(--lift);font-size:11.5px;line-height:1.5;
      font-variant-numeric:tabular-nums;white-space:nowrap;transition:transform .05s linear}
@@ -632,3 +647,17 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .fchart .zero{stroke:var(--rule);stroke-width:1;stroke-dasharray:3 3}
 .fchart .panelbg{fill:var(--surface)}
 .fchart .plab{fill:var(--fg-3);font-size:10px;font-weight:600;letter-spacing:.06em}
+
+/* Warna zona form mengikuti intervals.icu supaya tidak perlu belajar dua sistem. */
+:root{--z-transition:#D99A28;--z-fresh:#3E8FD0;--z-grey:#8A8A8A;--z-optimal:#2F9E62;--z-risk:#C8452F}
+[data-mode="night"]{--z-transition:#E2B45B;--z-fresh:#6FA8E0;--z-grey:#9E9E9E;--z-optimal:#5FB98A;--z-risk:#E07A66}
+.fb .v.zoned{color:var(--zc)}
+.fb .zn{font-size:9.5px;font-weight:600;letter-spacing:.05em;color:var(--zc);margin-top:3px}
+.fchart .zband{opacity:.13}
+.fchart .zlab{fill:var(--fg-3);font-size:8.5px;font-weight:600;letter-spacing:.05em}
+.fchart .actdot{fill:var(--low)}
+.fchart .f-ramp-pos{fill:var(--z-optimal);opacity:.22}
+.fchart .f-ramp-neg{fill:var(--c-ctl);opacity:.18}
+.dayhead .coachline{display:flex;gap:10px;align-items:flex-start;margin-top:9px}
+.dayhead .coachline .ic{width:18px;height:18px;color:var(--accent);margin-top:2px}
+.dayhead .coachline p{margin:0;font-size:13.5px;line-height:1.55;color:var(--fg-2);max-width:46ch}

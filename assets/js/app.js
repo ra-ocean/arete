@@ -79,6 +79,36 @@
     if (!bRhr) need.push(rhr==null ? 'resting HR' : 'resting HR ('+rhrHist.length+'/'+MIN+' hari)');
     return { score, sleep, hrv, rhr, need };
   }
+  /* Zona form intervals.icu. Batasnya default intervals.icu, jadi kalau Rausyan
+     membuka intervals.icu dan Areté berdampingan, keduanya bilang hal yang sama. */
+  const FORM_ZONES = [
+    { min:  25, name:'Transition', v:'--z-transition' },
+    { min:   5, name:'Fresh',      v:'--z-fresh' },
+    { min: -10, name:'Grey Zone',  v:'--z-grey' },
+    { min: -30, name:'Optimal',    v:'--z-optimal' },
+    { min:-999, name:'High Risk',  v:'--z-risk' }
+  ];
+  const formZone = f => f==null ? null : FORM_ZONES.find(z => f >= z.min);
+
+  /* Skor untuk SATU hari, tanpa mewarisi angka hari sebelumnya. Dipakai kalender:
+     hari yang tidak punya data sendiri harus kosong, bukan ikut warna kemarin. */
+  function dayScore(k) {
+    if (k > today) return null;
+    const rec = mergedRecovery();
+    const d = rec.find(r => r.key === k);
+    if (!d || (d.sleep==null && d.hrv==null && d.rhr==null)) return null;
+    const hist = rec.filter(r => r.key <= k).slice(-30);
+    const hv = hist.map(r=>r.hrv).filter(v=>v!=null), rv = hist.map(r=>r.rhr).filter(v=>v!=null);
+    const bH = hv.length>=5 ? median(hv) : null, bR = rv.length>=5 ? median(rv) : null;
+    const tg = goals.sleep_target_h || 7, parts = [];
+    if (d.sleep!=null) parts.push([0.40, clamp(100-Math.max(0,tg-d.sleep)*30,0,100)]);
+    if (d.hrv!=null && bH) parts.push([0.35, clamp(100+(d.hrv/bH-1)*200,40,112)]);
+    if (d.rhr!=null && bR) parts.push([0.25, clamp(100+(1-d.rhr/bR)*300,40,112)]);
+    if (!parts.length) return null;
+    const ws = parts.reduce((s,p)=>s+p[0],0);
+    return Math.round(clamp(parts.reduce((s,p)=>s+p[0]*p[1],0)/ws,0,100));
+  }
+
   const scoreColor = s => s==null ? 'var(--fg-3)' : s>=75 ? 'var(--good)' : s>=55 ? 'var(--mid)' : 'var(--low)';
 
   /* ================= NAVIGASI HARI ================= */
@@ -98,38 +128,48 @@
   }
 
   /* ================= VONIS HARI ================= */
+  /* Dua kalimat, suara coach. Tidak ada em dash, tidak ada angka telanjang
+     tanpa arti. Kalau menyuruh sesuatu, sebutkan cara melakukannya. */
   function verdict() {
     const v = logOf(sel), r = readiness(sel);
-    const nama = profile.name ? ', ' + profile.name : '';
+    const nama = profile.name || 'Rausyan';
     const dd = v.daily || {};
     const dailyDone = ['abs','calf','hip'].filter(k=>dd[k]).length;
     const trained = !!(v.st || v.run);
-    const empty = !Object.keys(v).length;
-    const isToday = sel === today;
+    const kosong = !Object.keys(v).length;
+    const hariIni = sel === today;
+    const w = PLAN.week[UI.dow(sel)];
+    const sesi = w.kind === 'run' ? 'lari' : w.kind === 'st' ? 'angkat beban' : 'latihan';
 
-    if (empty && !r.score) return {
-      t: isToday ? 'Belum ada catatan hari ini' + nama : 'Hari ini kosong',
-      s: isToday ? 'Ketuk Catat untuk mulai. Satu angka pun sudah cukup.'
-                 : 'Tidak ada yang tercatat di tanggal ini.' };
-
-    if (r.score != null && r.score < 50) return {
-      t: 'Performa hari belum optimal' + nama,
-      s: `Kesiapan ${r.score}${r.sleep!=null?` · tidur ${r.sleep} jam`:''}. Turunkan intensitas, jangan volume.` };
-
-    if (trained && dailyDone === 3) return {
-      t: 'Hari yang lengkap' + nama,
-      s: `Latihan jalan dan daily-track penuh. Kesiapan ${r.score ?? '—'}.` };
-
-    if (trained) return {
-      t: 'Latihan sudah jalan' + nama,
-      s: dailyDone ? `Daily-track ${dailyDone}/3 — tinggal sedikit lagi.` : 'Daily-track belum dicentang.' };
-
-    if (r.score != null && r.score >= 75) return {
-      t: 'Badan siap dipakai' + nama,
-      s: `Kesiapan ${r.score}. Sesi hari ini aman dijalankan penuh.` };
-
-    return { t: 'Belum ada latihan hari ini' + nama,
-             s: r.score!=null ? `Kesiapan ${r.score}. Rencana ada di bawah.` : 'Rencana hari ini ada di bawah.' };
+    if (r.score != null && r.score < 50) {
+      const t = r.sleep != null ? `Kamu cuma tidur ${r.sleep} jam semalam.` : 'Sinyal pemulihanmu rendah hari ini.';
+      return { t: `Badanmu belum pulih, ${nama}`,
+               s: `${t} Tetap ${sesi} seperti rencana, tapi pelankan. Kalau hari ini interval, ganti jadi easy. Kalau angkat beban, pakai beban 10 sampai 15 persen lebih ringan dan jangan mengejar rekor.` };
+    }
+    if (kosong && r.score == null) {
+      return { t: hariIni ? `Belum ada catatan hari ini, ${nama}` : 'Hari ini kosong',
+               s: hariIni ? 'Isi satu angka saja dulu, berat badan atau jam tidur. Sisanya menyusul.'
+                          : 'Tidak ada yang tercatat di tanggal ini.' };
+    }
+    if (trained && dailyDone === 3) {
+      return { t: `Hari yang lengkap, ${nama}`,
+               s: `Sesi utama jalan dan daily track selesai semua. Inilah yang kalau diulang cukup sering akan kelihatan hasilnya di bulan ketiga.` };
+    }
+    if (trained) {
+      return { t: `Sesi utama sudah beres, ${nama}`,
+               s: dailyDone ? `Daily track baru ${dailyDone} dari 3. Sisanya sekitar lima menit, kerjakan sebelum tidur.`
+                            : `Daily track belum disentuh. Abs, calf, dan hip totalnya 15 sampai 20 menit dan bisa dikerjakan di kamar.` };
+    }
+    if (r.score != null && r.score >= 75) {
+      return { t: `Badanmu siap dipakai, ${nama}`,
+               s: `Pemulihanmu bagus hari ini. Sesi ${sesi} boleh dijalankan penuh, termasuk bagian yang berat.` };
+    }
+    if (r.score != null && r.score >= 50) {
+      return { t: `Kondisimu wajar, ${nama}`,
+               s: `Jalankan sesi ${sesi} sesuai rencana. Jangan menambah dosis di luar yang sudah ditulis, hari ini bukan hari untuk cari bonus.` };
+    }
+    return { t: `Belum ada latihan hari ini, ${nama}`,
+             s: `Rencananya ada di bawah. Kalau waktumu mepet, kerjakan daily track saja, itu yang paling tidak boleh bolong.` };
   }
 
   /* ================= TARGET ================= */
@@ -165,7 +205,7 @@
     const P = [];
 
     if (r.score == null) {
-      P.push(`Belum ada satu pun angka pemulihan untuk hari ini, jadi skornya tidak bisa dihitung. Yang dibutuhkan cuma tiga: <b>jam tidur</b>, <b>HRV</b>, dan <b>resting HR</b>.`);
+      P.push(`Belum ada satu pun angka pemulihan untuk hari ini, jadi skornya belum bisa dihitung. Yang dibutuhkan cuma tiga, yaitu <b>jam tidur</b>, <b>HRV</b>, dan <b>resting HR</b>.`);
       P.push(`Bisa diketik manual lewat Catat → Badan, atau dibiarkan masuk sendiri kalau jam-mu sudah tersambung ke intervals.icu.`);
       return P;
     }
@@ -188,7 +228,7 @@
 
     P.push(`Skor <b>${r.score}</b> dihitung dari ${bits.join(', ')}.`);
     if (r.need.length) {
-      P.push(`Belum ikut dihitung: ${r.need.join(' dan ')}. HRV dan resting HR baru dipakai setelah ada 5 hari tercatat — sebelum itu tidak ada pembanding, dan skornya cuma akan terlihat bagus tanpa alasan.`);
+      P.push(`Belum ikut dihitung: ${r.need.join(' dan ')}. HRV dan resting HR baru dipakai setelah ada 5 hari tercatat. Sebelum itu tidak ada pembanding, dan skornya cuma akan terlihat bagus tanpa alasan.`);
     }
 
     /* hari ini harus bagaimana — dikaitkan ke rencana hari itu */
@@ -199,12 +239,12 @@
     } else if (r.score >= 65) {
       P.push(`Kondisi wajar. Jalankan sesi <b>${jenis}</b> seperti rencana, tapi jangan menambah dosis di luar yang sudah ditulis.`);
     } else if (r.score >= 50) {
-      P.push(`Pemulihan belum penuh. Saran saya: <b>volume tetap, intensitas turun satu tingkat</b>. Kalau hari ini interval, ganti easy. Kalau ST, kurangi beban 10–15% dan jangan cari rekor. Daily-track tetap jalan — bebannya ringan dan justru membantu sirkulasi.`);
+      P.push(`Pemulihan belum penuh. Saran saya begini. Jarak dan durasinya tetap seperti rencana, yang diturunkan kecepatan atau bebannya. Kalau hari ini interval, ganti jadi easy dengan jarak yang sama. Kalau angkat beban, pakai beban 10 sampai 15 persen lebih ringan tapi set dan repsnya tetap. Daily track jalan terus, bebannya ringan dan justru membantu sirkulasi.`);
     } else {
-      P.push(`Sinyal pemulihan rendah. Hari ini <b>jangan dipaksa</b>: ganti dengan easy run, jalan kaki, atau mobility saja. Memaksa sesi keras dengan kondisi begini menambah kelelahan tanpa menambah kebugaran — dan itu justru yang menjauhkan dari target lomba.`);
+      P.push(`Sinyal pemulihan rendah. Hari ini <b>jangan dipaksa</b>: ganti dengan easy run, jalan kaki, atau mobility saja. Memaksa sesi keras dengan kondisi begini menambah kelelahan tanpa menambah kebugaran, dan itu justru yang menjauhkan kamu dari target lomba.`);
     }
     if (r.sleep != null && r.sleep < 5.5) {
-      P.push(`Tidur di bawah 5,5 jam. Kalau ini berlanjut beberapa hari, efeknya menumpuk dan tidak bisa ditutup oleh latihan sebaik apa pun.`);
+      P.push(`Tidur di bawah 5,5 jam. Kalau berlanjut beberapa hari, efeknya menumpuk dan tidak bisa ditutup oleh latihan sebaik apa pun.`);
     }
     return P;
   }
@@ -267,43 +307,59 @@
     }
     coach.hidden = false; $('#c-fit').hidden = false;
     const w = rows[rows.length-1], prev = rows[rows.length-2] || null;
+    const zone = formZone(w.form);
 
-    /* Arah panah selalu menunjukkan perubahan; warnanya menunjukkan BAIK atau
-       TIDAK. Untuk Fitness naik itu baik, tapi untuk Fatigue naik justru beban
-       bertambah — mewarnainya hijau akan menyesatkan. */
-    const box = (k, key, val, goodUp, dp) => {
+    const box = (k, key, val, goodUp, dp, zoneVar, zoneName) => {
       const rp = v => v==null ? null : +v.toFixed(dp);
       const p = prev ? rp(prev[key]) : null, cur = rp(val);
       const d = (p!=null && cur!=null) ? +(cur-p).toFixed(dp) : null;
       const dir = d==null || d===0 ? 'flat' : (d>0 ? 'up' : 'down');
       const good = dir==='flat' ? 'flat' : ((dir==='up')===goodUp ? 'up' : 'down');
       const ar = dir==='flat' ? '—' : dir==='up' ? '▲' : '▼';
+      const style = zoneVar ? ` class="v zoned" style="--zc:var(${zoneVar})"` : ' class="v"';
       return `<div class="fb"><div class="k">${k}</div>
-        <div class="v">${val==null?'—':(val>0&&key==='form'?'+':'')+val.toFixed(dp)}</div>
+        <div${style}>${val==null?'—':(val>0&&key==='form'?'+':'')+val.toFixed(dp)}</div>
+        ${zoneName?`<div class="zn" style="--zc:var(${zoneVar})">${zoneName}</div>`:''}
         <div class="d ${good}"><span class="ar">${ar}</span>${d==null?'—':d===0?'sama':(d>0?'+':'')+d.toFixed(dp)}</div>
         <div class="p">kemarin ${p==null?'—':p.toFixed(dp)}</div></div>`;
     };
     el.innerHTML = `<div class="fitbox">
       ${box('Fitness','ctl', w.ctl, true, 0)}
       ${box('Fatigue','atl', w.atl, false, 0)}
-      ${box('Form','form', w.form, true, 1)}
+      ${box('Form','form', w.form, true, 1, zone && zone.v, zone && zone.name)}
     </div>`;
 
-    /* penilaian AI coach */
+    /* ---- penilaian coach: apa artinya, lalu apa yang harus dilakukan ---- */
     const P = [];
-    const dCtl = prev ? w.ctl-prev.ctl : null, dAtl = prev ? w.atl-prev.atl : null;
-    const arahCtl = dCtl==null ? '' : dCtl>0.3 ? 'naik' : dCtl<-0.3 ? 'turun' : 'datar';
-    const arahAtl = dAtl==null ? '' : dAtl>0.5 ? 'naik' : dAtl<-0.5 ? 'turun' : 'datar';
-    P.push(`Fitness <b>${Math.round(w.ctl)}</b>${arahCtl?` ${arahCtl}`:''}, fatigue <b>${Math.round(w.atl)}</b>${arahAtl?` ${arahAtl}`:''}. Fitness itu rata-rata beban latihanmu 42 hari terakhir — naiknya memang lambat, dan itu normal. Fatigue rata-rata 7 hari terakhir, jadi dia bereaksi cepat.`);
-    const f = w.form;
-    if (f > 5) P.push(`Form <b>+${f}</b> berarti kamu <b>segar</b> — beban akut sudah di bawah kapasitas. Bagus menjelang lomba, tapi kalau bertahan lama artinya latihannya kurang.`);
-    else if (f > -10) P.push(`Form <b>${f}</b> ada di <b>zona seimbang</b>: tidak segar, tidak terbebani. Ini tempat yang paling produktif untuk membangun kebugaran.`);
-    else if (f > -20) P.push(`Form <b>${f}</b> berarti kamu <b>sedang terbebani</b>. Masih zona adaptasi, tapi butuh hari mudah dalam waktu dekat.`);
-    else P.push(`Form <b>${f}</b> di bawah −20 — beban akut jauh di atas kapasitas. Ini zona rawan cedera, bukan zona adaptasi. Kurangi volume beberapa hari.`);
-    const d = UI.daysUntil(goals.race_date);
-    if (d>=0 && d<=14) P.push(d<=7
-      ? `${d} hari ke lomba. Di minggu taper, fatigue seharusnya turun dan form naik. Kalau form masih di bawah −10 tiga hari lagi, potong volume lebih agresif.`
-      : `${d} hari ke lomba. Beban berat masih boleh sampai H-7, setelah itu form yang harus dinaikkan.`);
+    const hari = UI.daysUntil(goals.race_date);
+    const ctl7 = rows.length>7 ? +(w.ctl - rows[rows.length-8].ctl).toFixed(1) : null;
+    const z = zone ? zone.name : '';
+
+    if (z === 'Optimal') {
+      P.push(`Form <b>${w.form}</b> ada di zona <b>Optimal</b>. Ini titik di mana latihan benar benar membangun kebugaran, bukan cuma bikin capek. Pertahankan pola minggu ini.`);
+    } else if (z === 'Grey Zone') {
+      P.push(`Form <b>${w.form}</b> masuk <b>Grey Zone</b>. Namanya memang begitu di intervals.icu karena zona ini tidak menghasilkan apa apa. Kamu tidak cukup terbebani untuk naik, tidak cukup segar untuk tampil. Kalau mau naik kebugaran, tambah satu sesi kualitas minggu ini. Kalau mau siap lomba, kurangi volume supaya form naik ke atas 5.`);
+    } else if (z === 'Fresh') {
+      P.push(`Form <b>+${w.form}</b> berarti <b>Fresh</b>. Bagus kalau lomba sudah dekat. Kalau lomba masih jauh, ini tanda latihanmu kurang dan kebugaran akan mulai turun.`);
+    } else if (z === 'High Risk') {
+      P.push(`Form <b>${w.form}</b> masuk <b>High Risk</b>. Beban akut jauh di atas kapasitas. Ambil dua sampai tiga hari mudah sekarang, jangan tunggu sampai ada yang sakit.`);
+    } else if (z === 'Transition') {
+      P.push(`Form <b>+${w.form}</b> masuk <b>Transition</b>. Kamu sudah terlalu lama istirahat dan kebugaran mulai luruh. Mulai bangun beban lagi pelan pelan.`);
+    }
+
+    if (ctl7 != null) {
+      P.push(ctl7 > 1.5
+        ? `Fitness naik <b>${ctl7}</b> dalam tujuh hari. Itu laju yang agresif. Aman kalau tidurmu cukup, berisiko kalau tidak.`
+        : ctl7 < -1.5
+        ? `Fitness turun <b>${Math.abs(ctl7)}</b> dalam tujuh hari. Kalau ini bukan minggu taper, berarti volumenya terlalu banyak dipotong.`
+        : `Fitness praktis datar dalam tujuh hari, bergerak ${ctl7 >= 0 ? '+' : ''}${ctl7}. Untuk menaikkannya kamu butuh tambahan beban, bukan sekadar rutin.`);
+    }
+
+    if (hari >= 0 && hari <= 21) {
+      P.push(hari <= 7
+        ? `${hari} hari ke lomba. Mulai sekarang tugasnya cuma satu, yaitu menaikkan form. Potong volume sekitar 40 persen, pertahankan satu sesi pendek berintensitas tinggi supaya kaki tidak tumpul.`
+        : `${hari} hari ke lomba. Beban berat masih boleh sampai H minus 7. Setelah itu fokusnya pindah ke menaikkan form, bukan menambah kebugaran.`);
+    }
     coach.querySelector('.cb-txt').innerHTML = P.map(x=>`<p>${x}</p>`).join('');
   }
 
@@ -319,22 +375,24 @@
       <path class="atl" d="${path('atl')}"/><path class="ctl" d="${path('ctl')}"/></svg>`;
   }
 
-  /* ================= GRAFIK PENUH (gaya intervals.icu) =================
-     Fitness dan Fatigue ditumpuk pada satu sumbu supaya trennya bisa dibandingkan.
-     Form dan Ramp punya panel sendiri di bawah — keduanya berayun di sekitar nol,
-     jadi menumpuknya dengan CTL/ATL cuma akan membuat semuanya gepeng. */
-  const RANGES = [[30,'1 bln'],[90,'3 bln'],[180,'6 bln'],[365,'1 thn']];
+  /* ================= GRAFIK PENUH (gaya intervals.icu) ================= */
+  const RANGES = [[7,'1 mgg'],[30,'1 bln'],[90,'3 bln'],[180,'6 bln'],[365,'1 thn']];
   const LAYERS = [['ctl','Fitness'],['atl','Fatigue'],['form','Form'],['ramp','Ramp']];
   let fullRange = 90, fullIdx = -1;
-  let fullOn = { ctl:true, atl:true, form:true, ramp:false };
+  let fullOn = { ctl:true, atl:true, form:true, ramp:true };
 
   function fullSeries() {
     const rows = fitRows() || [];
-    /* Ramp = perubahan fitness dalam 7 hari. Itu ukuran seberapa cepat beban naik. */
+    /* Ramp = perubahan fitness dalam 7 hari, sama seperti intervals.icu. */
     const withRamp = rows.map((r,i) => Object.assign({}, r, {
       ramp: i >= 7 && rows[i-7].ctl != null && r.ctl != null ? +(r.ctl - rows[i-7].ctl).toFixed(1) : null
     }));
     return withRamp.slice(-fullRange);
+  }
+  function activityDays() {
+    const s = new Set();
+    if (activities && activities.ok) activities.data.forEach(a => s.add(a.date));
+    return s;
   }
 
   function openFull() {
@@ -361,81 +419,128 @@
 
     const rows = fullSeries();
     if (rows.length < 2) { rot.innerHTML = `<div style="display:grid;place-items:center;height:100%;color:var(--fg-3);font-size:13px">Belum cukup data untuk rentang ini.</div>`; $('#full-read').textContent=''; return; }
+    const acts = activityDays();
 
-    const L=44, R=14, T=14, B=26, GAP=8;
+    const L=42, R=58, T=12, B=24, GAP=10;              /* R lebar: label panel ditaruh di kanan */
     const subs = ['form','ramp'].filter(k=>fullOn[k]);
-    const subH = subs.length ? Math.min(78, (H-T-B-GAP*subs.length) * 0.24) : 0;
-    const mainH = H - T - B - subs.length*(subH+GAP);
+    const mainOn = fullOn.ctl || fullOn.atl;
+    const subH = subs.length ? Math.min(84, (H-T-B-GAP*subs.length) * (mainOn ? 0.26 : 0.9/subs.length)) : 0;
+    const mainH = mainOn ? H - T - B - subs.length*(subH+GAP) : 0;
     const x = i => L + (i/(rows.length-1))*(W-L-R);
 
-    function scale(keys, y0, h) {
+    function scale(keys, y0, h, forceZero) {
       const vals = [];
       keys.forEach(k => rows.forEach(r => { if (r[k]!=null) vals.push(r[k]); }));
       if (!vals.length) return null;
       let lo=Math.min(...vals), hi=Math.max(...vals);
-      if (hi===lo){hi=lo+1;lo-=1;} const pad=(hi-lo)*.1; lo-=pad; hi+=pad;
+      if (forceZero) { lo=Math.min(lo,0); hi=Math.max(hi,0); }
+      if (hi===lo){hi=lo+1;lo-=1;} const pad=(hi-lo)*.12; lo-=pad; hi+=pad;
       return { lo, hi, y: v => y0 + (1-(v-lo)/(hi-lo))*h };
     }
     const path = (k, sc) => rows.map((r,i)=> r[k]==null?null:((i?'L':'M')+x(i).toFixed(1)+' '+sc.y(r[k]).toFixed(1)))
                                 .filter(Boolean).join(' ').replace(/^L/,'M');
-
     let s = '';
-    const mainKeys = ['ctl','atl'].filter(k=>fullOn[k]);
-    const scMain = mainKeys.length ? scale(mainKeys, T, mainH) : null;
-    if (scMain) {
+
+    /* ---------- panel utama: fitness + fatigue ---------- */
+    let scMain = null;
+    if (mainOn) {
+      const keys = ['ctl','atl'].filter(k=>fullOn[k]);
+      scMain = scale(keys, T, mainH);
       for (let g=0; g<=4; g++){ const v=scMain.lo+(scMain.hi-scMain.lo)*(1-g/4), yy=scMain.y(v);
         s+=`<line class="grid" x1="${L}" y1="${yy.toFixed(1)}" x2="${W-R}" y2="${yy.toFixed(1)}"/>`;
         s+=`<text x="6" y="${(yy+4).toFixed(1)}">${v.toFixed(0)}</text>`; }
       if (fullOn.ctl) s+=`<path class="f-ctl" d="${path('ctl',scMain)} L${x(rows.length-1).toFixed(1)} ${(T+mainH).toFixed(1)} L${L} ${(T+mainH).toFixed(1)} Z"/>`;
       if (fullOn.atl) s+=`<path class="l-atl" d="${path('atl',scMain)}"/>`;
       if (fullOn.ctl) s+=`<path class="l-ctl" d="${path('ctl',scMain)}"/>`;
+      /* titik merah = ada aktivitas hari itu, sama seperti intervals.icu */
+      rows.forEach((r,i)=>{ if (acts.has(r.date))
+        s+=`<circle class="actdot" cx="${x(i).toFixed(1)}" cy="${(T+mainH-4).toFixed(1)}" r="2.4"/>`; });
+      s+=`<text class="plab" x="${W-R+6}" y="${(T+11).toFixed(1)}">BEBAN</text>`;
     }
+
+    /* ---------- panel form: pita zona + garis berwarna per zona ---------- */
     const scSub = {};
     let yCur = T + mainH;
     subs.forEach(k => {
       yCur += GAP;
-      const sc = scale([k], yCur, subH); scSub[k]=sc;
-      s+=`<rect class="panelbg" x="${L}" y="${yCur.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${subH.toFixed(1)}" rx="6"/>`;
-      if (sc) {
-        if (sc.lo < 0 && sc.hi > 0) s+=`<line class="zero" x1="${L}" y1="${sc.y(0).toFixed(1)}" x2="${W-R}" y2="${sc.y(0).toFixed(1)}"/>`;
-        s+=`<path class="l-${k}" d="${path(k,sc)}"/>`;
-        s+=`<text class="plab" x="${L+7}" y="${(yCur+13).toFixed(1)}">${k==='form'?'FORM':'RAMP'}</text>`;
-        s+=`<text x="6" y="${(yCur+11).toFixed(1)}">${sc.hi.toFixed(0)}</text>`;
-        s+=`<text x="6" y="${(yCur+subH-2).toFixed(1)}">${sc.lo.toFixed(0)}</text>`;
+      const y0 = yCur;
+      const sc = scale([k], y0, subH, k==='ramp'); scSub[k]=sc;
+      s+=`<rect class="panelbg" x="${L}" y="${y0.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${subH.toFixed(1)}" rx="6"/>`;
+      if (!sc) { yCur += subH; return; }
+
+      if (k === 'form') {
+        /* pita zona intervals.icu, digambar hanya sepanjang yang terlihat */
+        const bounds = [[25,999,'--z-transition','Transition'],[5,25,'--z-fresh','Fresh'],
+                        [-10,5,'--z-grey','Grey Zone'],[-30,-10,'--z-optimal','Optimal'],
+                        [-999,-30,'--z-risk','High Risk']];
+        bounds.forEach(([blo,bhi,cv,nm]) => {
+          const a1 = Math.max(blo, sc.lo), b1 = Math.min(bhi, sc.hi);
+          if (b1 <= a1) return;
+          const yTop = sc.y(b1), yBot = sc.y(a1);
+          s+=`<rect class="zband" x="${L}" y="${yTop.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${(yBot-yTop).toFixed(1)}" fill="var(${cv})"/>`;
+          /* label zona ikut di talang kanan; lewati kalau bertabrakan dengan label panel FORM */
+          const zy = (yTop+yBot)/2+3;
+          if (yBot - yTop > 11 && Math.abs(zy - (y0+11)) > 13) s+=`<text class="zlab" x="${W-R+6}" y="${zy.toFixed(1)}" style="fill:var(${cv})">${nm}</text>`;
+        });
+        /* garis form diwarnai mengikuti zona titik awal tiap ruas */
+        for (let i=1;i<rows.length;i++){
+          if (rows[i-1].form==null||rows[i].form==null) continue;
+          const z = formZone(rows[i-1].form);
+          s+=`<line x1="${x(i-1).toFixed(1)}" y1="${sc.y(rows[i-1].form).toFixed(1)}"
+                    x2="${x(i).toFixed(1)}" y2="${sc.y(rows[i].form).toFixed(1)}"
+                    stroke="var(${z.v})" stroke-width="2" stroke-linecap="round"/>`;
+        }
+      } else {
+        /* ramp: area di atas nol hijau, di bawah nol biru, seperti intervals.icu */
+        const yz = sc.y(0);
+        s+=`<path class="f-ramp-pos" d="${path('ramp',sc)} L${x(rows.length-1).toFixed(1)} ${yz.toFixed(1)} L${L} ${yz.toFixed(1)} Z" clip-path="url(#clipPos${Math.round(y0)})"/>`;
+        s+=`<clipPath id="clipPos${Math.round(y0)}"><rect x="${L}" y="${y0.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${(yz-y0).toFixed(1)}"/></clipPath>`;
+        s+=`<path class="f-ramp-neg" d="${path('ramp',sc)} L${x(rows.length-1).toFixed(1)} ${yz.toFixed(1)} L${L} ${yz.toFixed(1)} Z" clip-path="url(#clipNeg${Math.round(y0)})"/>`;
+        s+=`<clipPath id="clipNeg${Math.round(y0)}"><rect x="${L}" y="${yz.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${(y0+subH-yz).toFixed(1)}"/></clipPath>`;
+        s+=`<line class="zero" x1="${L}" y1="${yz.toFixed(1)}" x2="${W-R}" y2="${yz.toFixed(1)}"/>`;
+        s+=`<path class="l-ramp" d="${path('ramp',sc)}"/>`;
+        s+=`<text class="plab" x="${W-R+6}" y="${(y0+11).toFixed(1)}" style="fill:var(--c-ramp)">RAMP</text>`;
       }
+      if (k==='form') s+=`<text class="plab" x="${W-R+6}" y="${(y0+11).toFixed(1)}" style="fill:var(--fg-3)">FORM</text>`;
+      s+=`<text x="6" y="${(y0+11).toFixed(1)}">${sc.hi.toFixed(0)}</text>`;
+      s+=`<text x="6" y="${(y0+subH-2).toFixed(1)}">${sc.lo.toFixed(0)}</text>`;
       yCur += subH;
     });
 
+    /* ---------- kursor + tooltip ---------- */
     const i = fullIdx<0 ? rows.length-1 : Math.min(Math.max(fullIdx,0), rows.length-1);
     const cx = x(i);
     s+=`<line class="cursor" x1="${cx.toFixed(1)}" y1="${T}" x2="${cx.toFixed(1)}" y2="${(H-B).toFixed(1)}"/>`;
-    if (scMain && fullOn.ctl && rows[i].ctl!=null) s+=`<circle class="knob" style="fill:var(--c-ctl)" cx="${cx.toFixed(1)}" cy="${scMain.y(rows[i].ctl).toFixed(1)}" r="4.5"/>`;
-    if (scMain && fullOn.atl && rows[i].atl!=null) s+=`<circle class="knob" style="fill:var(--c-atl)" cx="${cx.toFixed(1)}" cy="${scMain.y(rows[i].atl).toFixed(1)}" r="4"/>`;
-    subs.forEach(k => { if (scSub[k] && rows[i][k]!=null)
-      s+=`<circle class="knob" style="fill:var(--c-${k})" cx="${cx.toFixed(1)}" cy="${scSub[k].y(rows[i][k]).toFixed(1)}" r="4"/>`; });
+    if (scMain && fullOn.ctl && rows[i].ctl!=null) s+=`<circle style="fill:var(--c-ctl)" cx="${cx.toFixed(1)}" cy="${scMain.y(rows[i].ctl).toFixed(1)}" r="4.5"/>`;
+    if (scMain && fullOn.atl && rows[i].atl!=null) s+=`<circle style="fill:var(--c-atl)" cx="${cx.toFixed(1)}" cy="${scMain.y(rows[i].atl).toFixed(1)}" r="4"/>`;
+    subs.forEach(k => { if (scSub[k] && rows[i][k]!=null) {
+      const col = k==='form' ? `var(${formZone(rows[i].form).v})` : 'var(--c-ramp)';
+      s+=`<circle style="fill:${col}" cx="${cx.toFixed(1)}" cy="${scSub[k].y(rows[i][k]).toFixed(1)}" r="4"/>`; } });
 
-    /* Tooltip menempel di garis yang sedang digeser, bukan dipaku di pojok. */
     const lines = [];
-    LAYERS.forEach(([k,l]) => { if (fullOn[k] && rows[i][k]!=null)
-      lines.push([l, k==='form'&&rows[i][k]>0?'+'+rows[i][k]:rows[i][k], k]); });
-    const bw = 118, bh = 20 + lines.length*15;
+    LAYERS.forEach(([k,l]) => { if (fullOn[k] && rows[i][k]!=null) {
+      const col = k==='form' ? formZone(rows[i][k]).v : '--c-'+k;
+      lines.push([l, (k==='form'&&rows[i][k]>0?'+':'')+rows[i][k], col]); } });
+    if (rows[i].form!=null && fullOn.form) lines.push(['Zona', formZone(rows[i].form).name, formZone(rows[i].form).v]);
+    const bw = 132, bh = 22 + lines.length*15;
     let bx = cx + 12; if (bx + bw > W-R) bx = cx - 12 - bw;
-    let by = Math.max(T+2, Math.min(T + mainH*0.15, H-B-bh-2));
+    bx = Math.max(L+2, bx);
+    const by = T + 4;                                   /* selalu di panel atas, tidak menimpa label panel */
     s+=`<g><rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${bh}" rx="9"
          fill="var(--bg)" stroke="var(--rule)"/>
-         <text x="${(bx+9).toFixed(1)}" y="${(by+15).toFixed(1)}" style="fill:var(--fg);font-size:11px;font-weight:600">${UI.fmt(rows[i].date, true)}</text>`;
+         <text x="${(bx+10).toFixed(1)}" y="${(by+16).toFixed(1)}" style="fill:var(--fg);font-size:11px;font-weight:600">${UI.fmt(rows[i].date, true)}</text>`;
     lines.forEach((ln,j) => {
-      const yy = by + 30 + j*15;
-      s+=`<rect x="${(bx+9).toFixed(1)}" y="${(yy-4).toFixed(1)}" width="10" height="2.5" rx="1.2" fill="var(--c-${ln[2]})"/>`;
-      s+=`<text x="${(bx+24).toFixed(1)}" y="${yy.toFixed(1)}" style="fill:var(--fg-2);font-size:10.5px">${ln[0]}</text>`;
-      s+=`<text x="${(bx+bw-9).toFixed(1)}" y="${yy.toFixed(1)}" text-anchor="end" style="fill:var(--fg);font-size:11px;font-weight:600">${ln[1]}</text>`;
+      const yy = by + 32 + j*15;
+      s+=`<rect x="${(bx+10).toFixed(1)}" y="${(yy-4).toFixed(1)}" width="10" height="2.5" rx="1.2" fill="var(${ln[2]})"/>`;
+      s+=`<text x="${(bx+25).toFixed(1)}" y="${yy.toFixed(1)}" style="fill:var(--fg-2);font-size:10.5px">${ln[0]}</text>`;
+      s+=`<text x="${(bx+bw-10).toFixed(1)}" y="${yy.toFixed(1)}" text-anchor="end" style="fill:var(--fg);font-size:11px;font-weight:600">${ln[1]}</text>`;
     });
     s+=`</g>`;
+    s+=`<text x="${L}" y="${(H-7).toFixed(1)}">${UI.fmt(rows[0].date)}</text>`;
+    s+=`<text x="${W-R}" y="${(H-7).toFixed(1)}" text-anchor="end">${UI.fmt(rows[rows.length-1].date)}</text>`;
 
-    s+=`<text x="${L}" y="${(H-8).toFixed(1)}">${UI.fmt(rows[0].date)}</text>`;
-    s+=`<text x="${W-R}" y="${(H-8).toFixed(1)}" text-anchor="end">${UI.fmt(rows[rows.length-1].date)}</text>`;
     rot.innerHTML = `<svg class="fchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${s}</svg>`;
-    $('#full-read').innerHTML = `<b>${UI.fmt(rows[i].date, true)}</b> · ${fullRange===365?'1 tahun':fullRange+' hari'}`;
+    $('#full-read').innerHTML = `<b>${UI.fmt(rows[i].date, true)}</b> · ${rows.length} hari`;
 
     stage.onpointerdown = stage.onpointermove = e => {
       if (e.type==='pointermove' && e.buttons===0) return;
@@ -762,7 +867,8 @@
       const k = keyOf(new Date(calMonth.getFullYear(), calMonth.getMonth(), d));
       const off = k < lo || k > today;
       const has = logs.some(l=>l.key===k);
-      html += `<button type="button" data-k="${k}"${off?' disabled':''} class="${has?'has ':''}${k===sel?'sel':''}">${d}</button>`;
+      html += `<button type="button" data-k="${k}"${off?' disabled':''} class="${has?'has ':''}${k===sel?'sel':''}">
+        <span class="dnum">${d}</span><span class="q"></span></button>`;
     }
     $('#cal-grid').innerHTML = html;
     paintCalendar();
@@ -778,31 +884,35 @@
   function paintCalendar() {
     const wm = wellnessMap();
     const cells = $$('#cal-grid button[data-k]');
-    const vals = [];
     const valueOf = k => {
-      if (calMetric === 'ready') { const r = readiness(k); return r.score; }
-      const w = wm[k]; return w ? w[calMetric] : null;
+      if (k > today) return null;                       /* hari yang belum berlalu selalu kosong */
+      if (calMetric === 'ready') return dayScore(k);
+      const w = wm[k]; return w && w[calMetric] != null ? Math.round(w[calMetric]) : null;
     };
-    const map = {};
+    const vals = [], map = {};
     cells.forEach(b => { const v = valueOf(b.dataset.k); map[b.dataset.k]=v; if (v!=null) vals.push(v); });
-    if (!vals.length) { cells.forEach(b=>{ const q=b.querySelector('.q'); if(q) q.remove(); });
-      $('#cal-legend').innerHTML = `<span>Belum ada data untuk metrik ini di bulan ini</span>`; return; }
+    const nm = { ready:'Recovery', ctl:'Fitness', atl:'Fatigue' }[calMetric];
+    if (!vals.length) {
+      cells.forEach(b => { const q=b.querySelector('.q'); if(q){ q.textContent=''; q.className='q'; } });
+      $('#cal-legend').innerHTML = `<span>Belum ada data ${nm} di bulan ini</span>`; return;
+    }
     const lo = Math.min(...vals), hi = Math.max(...vals);
-    const goodHigh = calMetric !== 'atl';        /* fatigue: makin tinggi makin berat */
+    const goodHigh = calMetric !== 'atl';               /* fatigue: makin tinggi makin berat */
     cells.forEach(b => {
-      let q = b.querySelector('.q'); if (!q) { q = document.createElement('span'); q.className='q'; b.appendChild(q); }
+      const q = b.querySelector('.q'); if (!q) return;
       const v = map[b.dataset.k];
-      if (v == null) { q.style.background='transparent'; return; }
+      if (v == null) { q.textContent=''; q.className='q'; q.style.removeProperty('--qc'); return; }
       const t = hi===lo ? .5 : (v-lo)/(hi-lo);
       const good = goodHigh ? t : 1-t;
-      q.style.background = good>=.66 ? 'var(--good)' : good>=.33 ? 'var(--mid)' : 'var(--low)';
+      q.textContent = v;
+      q.className = 'q on';
+      q.style.setProperty('--qc', good>=.66 ? 'var(--good)' : good>=.33 ? 'var(--mid)' : 'var(--low)');
     });
-    const nm = { ready:'Recovery', ctl:'Fitness', atl:'Fatigue' }[calMetric];
     $('#cal-legend').innerHTML =
       `<span><i style="background:var(--low)"></i>${goodHigh?'rendah':'tinggi'}</span>
        <span><i style="background:var(--mid)"></i>sedang</span>
        <span><i style="background:var(--good)"></i>${goodHigh?'tinggi':'rendah'}</span>
-       <span style="margin-left:6px">${nm} ${lo.toFixed(0)}–${hi.toFixed(0)}</span>`;
+       <span style="margin-left:6px">${nm} ${lo}–${hi}</span>`;
   }
 
   /* ================= SHEET CATAT ================= */

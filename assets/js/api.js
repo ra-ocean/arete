@@ -6,7 +6,7 @@ window.Api = (function () {
   const TTL = 30 * 60 * 1000;   // cache 30 menit di IndexedDB
 
   async function call(what, days) {
-    const cacheKey = 'intervals_' + what;
+    const cacheKey = 'intervals_' + what + '_' + (days || 42);
     const cached = await Store.get('cache', cacheKey);
     if (cached && Date.now() - cached.at < TTL) return { ok: true, data: cached.data, cached: true };
 
@@ -35,6 +35,9 @@ window.Api = (function () {
   return {
     wellness: (d) => call('wellness', d || 42),
     activities: (d) => call('activities', d || 42),
-    async clearCache() { await Store.del('cache', 'intervals_wellness'); await Store.del('cache', 'intervals_activities'); }
+    async clearCache() {
+      const all = await Store.all('cache');
+      for (const r of all) if (String(r.key).startsWith('intervals_')) await Store.del('cache', r.key);
+    }
   };
 })();
