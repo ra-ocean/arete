@@ -1,0 +1,11 @@
+import pkg from '/opt/node-tools/node_modules/playwright/index.js'; const { chromium } = pkg;
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const ctx = await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,colorScheme:'dark'});
+const p = await ctx.newPage();
+const e=[]; p.on('pageerror',x=>e.push('PAGEERR '+x.message));
+await p.goto('http://127.0.0.1:8163/'); await p.waitForTimeout(5200);
+await p.evaluate(()=>document.documentElement.setAttribute('data-mode','night'));
+await p.click('#c-fit'); await p.waitForTimeout(900);
+await p.screenshot({path:'/home/claude/z1_dark.png'});
+console.log('errors:', e.join(' | ')||'none');
+await b.close();

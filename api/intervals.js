@@ -41,7 +41,7 @@ export default async function handler(req, res) {
   if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
 
   const what = (req.query.what || 'wellness').toString();
-  const days = Math.min(parseInt(req.query.days, 10) || 42, 180);
+  const days = Math.min(parseInt(req.query.days, 10) || 42, 3000);
   /* ?raw=1 mengembalikan payload apa adanya dari intervals.icu.
      Dipakai untuk mendiagnosis field yang hilang — API key tetap di server. */
   const raw = req.query.raw === '1';

@@ -130,6 +130,33 @@
   /* ================= VONIS HARI ================= */
   /* Dua kalimat, suara coach. Tidak ada em dash, tidak ada angka telanjang
      tanpa arti. Kalau menyuruh sesuatu, sebutkan cara melakukannya. */
+  /* Instruksi dosis yang konkret untuk sesi hari itu. Kalimat seperti
+     "termasuk bagian yang berat" tidak menolong siapa pun — yang menolong
+     adalah menyebut sesi mana, angkanya berapa, dan apa yang diubah. */
+  function doseLine(w, lvl) {
+    if (w.kind === 'st') {
+      return lvl === 'hi'  ? `${w.title} pakai beban penuh. Kalau dua reps terakhir masih terasa ringan, naikkan 2,5 kg minggu depan.`
+           : lvl === 'mid' ? `${w.title} pakai beban yang sama dengan minggu lalu. Hari ini bukan hari untuk naik beban.`
+           :                 `${w.title} turunkan bebannya 10 sampai 15 persen. Set dan repsnya tetap, jangan dipotong.`;
+    }
+    if (w.kind === 'run') {
+      if (/kualitas/i.test(w.title)) {
+        return lvl === 'hi'  ? `Lari kualitas boleh dikejar sampai pace target dari coach, termasuk repetisi terakhir.`
+             : lvl === 'mid' ? `Lari kualitas tetap jalan, tapi ambil pace interval sekitar 10 detik per km lebih lambat dari target.`
+             :                 `Ganti lari kualitas jadi easy run dengan jarak yang sama. Interval dengan kondisi begini menambah lelah tanpa menambah kebugaran.`;
+      }
+      if (/long/i.test(w.title)) {
+        return lvl === 'hi'  ? `Long run jalan penuh dan tetap di zona easy sampai kilometer terakhir.`
+             : lvl === 'mid' ? `Long run jalan, ambil durasi paling pendek dari rentang yang dikasih coach.`
+             :                 `Potong long run jadi setengah durasi, tetap easy.`;
+      }
+      return lvl === 'lo' ? `Lari easy dipendekkan saja, 20 sampai 30 menit sudah cukup.`
+                          : `Lari easy jalan seperti biasa. Easy artinya benar benar easy, jangan tergoda ngebut.`;
+    }
+    return lvl === 'lo' ? `Slot fleksibel hari ini diisi mobility saja, jangan latihan beban.`
+                        : `Slot fleksibel: kalau tidak ada sesi coach, ambil Sesi A atau B yang belum dikerjakan minggu ini.`;
+  }
+
   function verdict() {
     const v = logOf(sel), r = readiness(sel);
     const nama = profile.name || 'Rausyan';
@@ -139,12 +166,10 @@
     const kosong = !Object.keys(v).length;
     const hariIni = sel === today;
     const w = PLAN.week[UI.dow(sel)];
-    const sesi = w.kind === 'run' ? 'lari' : w.kind === 'st' ? 'angkat beban' : 'latihan';
 
     if (r.score != null && r.score < 50) {
-      const t = r.sleep != null ? `Kamu cuma tidur ${r.sleep} jam semalam.` : 'Sinyal pemulihanmu rendah hari ini.';
-      return { t: `Badanmu belum pulih, ${nama}`,
-               s: `${t} Tetap ${sesi} seperti rencana, tapi pelankan. Kalau hari ini interval, ganti jadi easy. Kalau angkat beban, pakai beban 10 sampai 15 persen lebih ringan dan jangan mengejar rekor.` };
+      const t = r.sleep != null ? `Tidurmu cuma ${r.sleep} jam.` : 'Sinyal pemulihanmu rendah hari ini.';
+      return { t: `Badanmu belum pulih, ${nama}`, s: `${t} ${doseLine(w,'lo')}` };
     }
     if (kosong && r.score == null) {
       return { t: hariIni ? `Belum ada catatan hari ini, ${nama}` : 'Hari ini kosong',
@@ -161,12 +186,10 @@
                             : `Daily track belum disentuh. Abs, calf, dan hip totalnya 15 sampai 20 menit dan bisa dikerjakan di kamar.` };
     }
     if (r.score != null && r.score >= 75) {
-      return { t: `Badanmu siap dipakai, ${nama}`,
-               s: `Pemulihanmu bagus hari ini. Sesi ${sesi} boleh dijalankan penuh, termasuk bagian yang berat.` };
+      return { t: `Badanmu siap dipakai, ${nama}`, s: `${doseLine(w,'hi')} Daily track tetap dikerjakan malamnya.` };
     }
     if (r.score != null && r.score >= 50) {
-      return { t: `Kondisimu wajar, ${nama}`,
-               s: `Jalankan sesi ${sesi} sesuai rencana. Jangan menambah dosis di luar yang sudah ditulis, hari ini bukan hari untuk cari bonus.` };
+      return { t: `Kondisimu wajar, ${nama}`, s: `${doseLine(w,'mid')} Jangan menambah dosis di luar yang sudah ditulis.` };
     }
     return { t: `Belum ada latihan hari ini, ${nama}`,
              s: `Rencananya ada di bawah. Kalau waktumu mepet, kerjakan daily track saja, itu yang paling tidak boleh bolong.` };
@@ -197,54 +220,62 @@
   }
 
   /* ================= HERO KESIAPAN ================= */
-  /* Narasi kesiapan. Angka telanjang tidak menolong siapa pun — yang berguna
-     adalah: dari mana angkanya, apa yang belum ikut dihitung, dan hari ini
-     harus bagaimana. Semua kalimat di bawah lahir dari data, bukan template. */
+  /* Narasi kesiapan. Tugasnya cuma dua: dari mana angkanya, dan apa yang
+     angka itu ceritakan yang tidak kelihatan dari satu hari saja. Instruksi
+     latihan sudah ada di kalimat coach di atas, jadi tidak diulang di sini. */
   function readinessNarrative(r) {
     const tgt = goals.sleep_target_h || 7;
     const P = [];
 
     if (r.score == null) {
-      P.push(`Belum ada satu pun angka pemulihan untuk hari ini, jadi skornya belum bisa dihitung. Yang dibutuhkan cuma tiga, yaitu <b>jam tidur</b>, <b>HRV</b>, dan <b>resting HR</b>.`);
-      P.push(`Bisa diketik manual lewat Catat → Badan, atau dibiarkan masuk sendiri kalau jam-mu sudah tersambung ke intervals.icu.`);
+      P.push(`Skor belum bisa dihitung karena belum ada satu pun angka pemulihan hari ini. Yang dibutuhkan cuma <b>jam tidur</b>, <b>HRV</b>, dan <b>resting HR</b>.`);
+      P.push(`Ketik manual lewat Catat → Badan, atau biarkan masuk sendiri kalau jam-mu sudah tersambung ke intervals.icu.`);
       return P;
     }
 
-    /* dari mana angkanya */
-    const bits = [];
-    if (r.sleep != null) {
-      const kurang = Math.max(0, tgt - r.sleep);
-      bits.push(kurang > 0
-        ? `tidur <b>${r.sleep} jam</b>, kurang ${kurang.toFixed(1)} jam dari target ${tgt}`
-        : `tidur <b>${r.sleep} jam</b>, sudah memenuhi target ${tgt}`);
-    }
-    const rec = mergedRecovery().filter(x=>x.key<=sel).slice(-30);
+    const rec = mergedRecovery().filter(x => x.key <= sel).slice(-30);
     const bH = median(rec.map(x=>x.hrv).filter(v=>v!=null));
     const bR = median(rec.map(x=>x.rhr).filter(v=>v!=null));
-    const usedHrv = r.hrv!=null && !r.need.some(n=>n.startsWith('HRV'));
-    const usedRhr = r.rhr!=null && !r.need.some(n=>n.startsWith('resting'));
-    if (usedHrv) bits.push(`HRV <b>${r.hrv} ms</b> ${r.hrv>=bH?'di atas':'di bawah'} kebiasaanmu (${Math.round(bH)})`);
-    if (usedRhr) bits.push(`resting HR <b>${r.rhr} bpm</b> ${r.rhr<=bR?'di bawah':'di atas'} kebiasaanmu (${Math.round(bR)})`);
+    const usedHrv = r.hrv != null && !r.need.some(n=>n.startsWith('HRV'));
+    const usedRhr = r.rhr != null && !r.need.some(n=>n.startsWith('resting'));
 
-    P.push(`Skor <b>${r.score}</b> dihitung dari ${bits.join(', ')}.`);
+    /* baris 1 — asal angkanya, sependek mungkin */
+    const bits = [];
+    if (r.sleep != null) bits.push(`tidur <b>${r.sleep} jam</b>${r.sleep < tgt ? ` (target ${tgt})` : ''}`);
+    if (usedHrv) bits.push(`HRV <b>${r.hrv}</b> vs biasanya ${Math.round(bH)}`);
+    if (usedRhr) bits.push(Math.round(bR) === Math.round(r.rhr)
+      ? `resting HR <b>${r.rhr}</b>, persis kebiasaanmu`
+      : `resting HR <b>${r.rhr}</b> vs biasanya ${Math.round(bR)}`);
+    P.push(`Skor <b>${r.score}</b> dari ${bits.join(', ')}.`);
+
+    /* baris 2 — yang tidak kelihatan dari satu hari: arah dan penyebab */
+    const hist = [];
+    for (let k = 6; k >= 0; k--) {
+      const d = new Date(UI.parse(sel).getTime() - k*86400000);
+      const sc = dayScore(keyOf(d));
+      if (sc != null) hist.push(sc);
+    }
+    const sl7 = rec.slice(-7).map(x=>x.sleep).filter(v=>v!=null);
+    const slAvg = sl7.length >= 3 ? avg(sl7) : null;
+    const trend = hist.length >= 4 ? Math.round(avg(hist.slice(0,-1))) : null;
+
+    const T = [];
+    if (trend != null) {
+      const d = r.score - trend;
+      T.push(Math.abs(d) < 4 ? `Rata rata seminggu ${trend}, jadi hari ini tidak menyimpang.`
+           : d > 0 ? `Rata rata seminggu ${trend}, hari ini ${d} poin di atasnya. Arahnya naik.`
+                   : `Rata rata seminggu ${trend}, hari ini ${Math.abs(d)} poin di bawahnya.`);
+    }
+    if (slAvg != null && slAvg < tgt - 0.5) {
+      T.push(`Tidurmu rata rata ${slAvg.toFixed(1)} jam seminggu ini, kurang ${(tgt-slAvg).toFixed(1)} jam dari target. Itu yang menahan skormu, bukan latihannya.`);
+    } else if (slAvg != null) {
+      T.push(`Tidur rata rata ${slAvg.toFixed(1)} jam seminggu ini, sudah di sekitar target.`);
+    }
+    if (T.length) P.push(T.join(' '));
+
+    /* baris 3 — apa yang belum ikut dihitung, satu kalimat saja */
     if (r.need.length) {
-      P.push(`Belum ikut dihitung: ${r.need.join(' dan ')}. HRV dan resting HR baru dipakai setelah ada 5 hari tercatat. Sebelum itu tidak ada pembanding, dan skornya cuma akan terlihat bagus tanpa alasan.`);
-    }
-
-    /* hari ini harus bagaimana — dikaitkan ke rencana hari itu */
-    const w = PLAN.week[UI.dow(sel)];
-    const jenis = w.kind === 'run' ? 'lari' : w.kind === 'st' ? 'strength' : 'fleksibel';
-    if (r.score >= 80) {
-      P.push(`Badan pulih penuh. Sesi <b>${jenis}</b> hari ini boleh dijalankan sesuai rencana, termasuk bagian yang berat.`);
-    } else if (r.score >= 65) {
-      P.push(`Kondisi wajar. Jalankan sesi <b>${jenis}</b> seperti rencana, tapi jangan menambah dosis di luar yang sudah ditulis.`);
-    } else if (r.score >= 50) {
-      P.push(`Pemulihan belum penuh. Saran saya begini. Jarak dan durasinya tetap seperti rencana, yang diturunkan kecepatan atau bebannya. Kalau hari ini interval, ganti jadi easy dengan jarak yang sama. Kalau angkat beban, pakai beban 10 sampai 15 persen lebih ringan tapi set dan repsnya tetap. Daily track jalan terus, bebannya ringan dan justru membantu sirkulasi.`);
-    } else {
-      P.push(`Sinyal pemulihan rendah. Hari ini <b>jangan dipaksa</b>: ganti dengan easy run, jalan kaki, atau mobility saja. Memaksa sesi keras dengan kondisi begini menambah kelelahan tanpa menambah kebugaran, dan itu justru yang menjauhkan kamu dari target lomba.`);
-    }
-    if (r.sleep != null && r.sleep < 5.5) {
-      P.push(`Tidur di bawah 5,5 jam. Kalau berlanjut beberapa hari, efeknya menumpuk dan tidak bisa ditutup oleh latihan sebaik apa pun.`);
+      P.push(`${r.need.join(' dan ')} belum ikut dihitung, baru dipakai setelah ada 5 hari tercatat sebagai pembanding.`);
     }
     return P;
   }
@@ -329,36 +360,50 @@
       ${box('Form','form', w.form, true, 1, zone && zone.v, zone && zone.name)}
     </div>`;
 
-    /* ---- penilaian coach: apa artinya, lalu apa yang harus dilakukan ---- */
+    /* ---- pembacaan coach: apa artinya angka ini, lalu apa yang harus diubah ---- */
     const P = [];
     const hari = UI.daysUntil(goals.race_date);
-    const ctl7 = rows.length>7 ? +(w.ctl - rows[rows.length-8].ctl).toFixed(1) : null;
+    const ctl7 = rows.length > 7 ? +(w.ctl - rows[rows.length-8].ctl).toFixed(1) : null;
+    const ratio = (w.ctl && w.atl != null) ? +(w.atl / w.ctl).toFixed(2) : null;
     const z = zone ? zone.name : '';
+    const f = w.form;
 
     if (z === 'Optimal') {
-      P.push(`Form <b>${w.form}</b> ada di zona <b>Optimal</b>. Ini titik di mana latihan benar benar membangun kebugaran, bukan cuma bikin capek. Pertahankan pola minggu ini.`);
+      P.push(`Form <b>${f.toFixed(1)}</b> ada di <b>Optimal</b>. Beban tujuh harianmu cukup berat untuk memaksa adaptasi tapi masih bisa kamu serap. Ini kondisi yang kamu cari saat membangun. Tahan pola minggu ini, jangan tambah apa apa.`);
     } else if (z === 'Grey Zone') {
-      P.push(`Form <b>${w.form}</b> masuk <b>Grey Zone</b>. Namanya memang begitu di intervals.icu karena zona ini tidak menghasilkan apa apa. Kamu tidak cukup terbebani untuk naik, tidak cukup segar untuk tampil. Kalau mau naik kebugaran, tambah satu sesi kualitas minggu ini. Kalau mau siap lomba, kurangi volume supaya form naik ke atas 5.`);
+      /* berapa beban tambahan yang dibutuhkan supaya form turun ke Optimal (-10) */
+      const need = Math.max(0, f - (-10));
+      const load = Math.round(need * 7);
+      P.push(`Form <b>${f.toFixed(1)}</b> ada di <b>Grey Zone</b>. Beban akut tujuh harimu hampir sama besar dengan kapasitas 42 harimu, jadi tubuh tidak menerima sinyal apa pun untuk berubah. Bukan kondisi berbahaya, tapi juga bukan kondisi yang membangun.`);
+      P.push(`Untuk masuk Optimal, fatigue perlu naik sekitar <b>${need.toFixed(0)} poin</b>, kira kira setara tambahan beban ${load} TSS minggu ini atau satu sesi kualitas ekstra. Kalau yang kamu kejar justru kesiapan lomba, arahnya sebaliknya: potong volume sampai form naik ke atas 5.`);
     } else if (z === 'Fresh') {
-      P.push(`Form <b>+${w.form}</b> berarti <b>Fresh</b>. Bagus kalau lomba sudah dekat. Kalau lomba masih jauh, ini tanda latihanmu kurang dan kebugaran akan mulai turun.`);
+      P.push(`Form <b>+${f.toFixed(1)}</b> berarti <b>Fresh</b>. Kelelahan sudah luruh dan kaki siap dipakai tampil. Bagus kalau lomba dekat. Kalau lomba masih jauh, ini tanda beban tujuh harianmu terlalu ringan dan fitness akan mulai turun dalam dua minggu.`);
     } else if (z === 'High Risk') {
-      P.push(`Form <b>${w.form}</b> masuk <b>High Risk</b>. Beban akut jauh di atas kapasitas. Ambil dua sampai tiga hari mudah sekarang, jangan tunggu sampai ada yang sakit.`);
+      P.push(`Form <b>${f.toFixed(1)}</b> masuk <b>High Risk</b>. Beban tujuh harimu jauh melampaui kapasitas 42 harimu. Ambil dua sampai tiga hari mudah sekarang, jangan tunggu ada yang terasa sakit. Cedera di titik ini biasanya datang tanpa peringatan.`);
     } else if (z === 'Transition') {
-      P.push(`Form <b>+${w.form}</b> masuk <b>Transition</b>. Kamu sudah terlalu lama istirahat dan kebugaran mulai luruh. Mulai bangun beban lagi pelan pelan.`);
+      P.push(`Form <b>+${f.toFixed(1)}</b> masuk <b>Transition</b>. Kamu sudah cukup lama tidak memberi beban berarti dan kebugaran mulai luruh. Bangun lagi lewat volume dulu, naik sekitar 10 persen per minggu, baru sentuh intensitas.`);
+    }
+
+    if (ratio != null) {
+      P.push(ratio >= 1.3
+        ? `Rasio beban akut ke kronis <b>${ratio}</b>. Di atas 1,3 risiko cedera naik tajam. Turunkan satu sesi keras minggu ini.`
+        : ratio <= 0.8
+        ? `Rasio beban akut ke kronis <b>${ratio}</b>. Di bawah 0,8 artinya kamu sedang detraining, bukan istirahat.`
+        : `Rasio beban akut ke kronis <b>${ratio}</b>, masih di rentang aman 0,8 sampai 1,3.`);
     }
 
     if (ctl7 != null) {
       P.push(ctl7 > 1.5
-        ? `Fitness naik <b>${ctl7}</b> dalam tujuh hari. Itu laju yang agresif. Aman kalau tidurmu cukup, berisiko kalau tidak.`
+        ? `Fitness naik <b>${ctl7}</b> dalam tujuh hari. Itu laju agresif. Aman kalau tidurmu cukup, berisiko kalau tidak.`
         : ctl7 < -1.5
-        ? `Fitness turun <b>${Math.abs(ctl7)}</b> dalam tujuh hari. Kalau ini bukan minggu taper, berarti volumenya terlalu banyak dipotong.`
-        : `Fitness praktis datar dalam tujuh hari, bergerak ${ctl7 >= 0 ? '+' : ''}${ctl7}. Untuk menaikkannya kamu butuh tambahan beban, bukan sekadar rutin.`);
+        ? `Fitness turun <b>${Math.abs(ctl7)}</b> dalam tujuh hari. Kalau ini bukan minggu taper, volumenya terlalu banyak dipotong.`
+        : `Fitness bergerak ${ctl7 >= 0 ? '+' : ''}${ctl7} dalam tujuh hari, praktis datar. Rutin yang diulang persis sama tidak menaikkan apa apa.`);
     }
 
     if (hari >= 0 && hari <= 21) {
       P.push(hari <= 7
-        ? `${hari} hari ke lomba. Mulai sekarang tugasnya cuma satu, yaitu menaikkan form. Potong volume sekitar 40 persen, pertahankan satu sesi pendek berintensitas tinggi supaya kaki tidak tumpul.`
-        : `${hari} hari ke lomba. Beban berat masih boleh sampai H minus 7. Setelah itu fokusnya pindah ke menaikkan form, bukan menambah kebugaran.`);
+        ? `${hari} hari ke lomba. Tugasnya tinggal satu, menaikkan form. Potong volume sekitar 40 persen, sisakan satu sesi pendek berintensitas lomba supaya kaki tidak tumpul.`
+        : `${hari} hari ke lomba. Beban berat masih boleh sampai H minus 7, target form di hari lomba ada di rentang +5 sampai +15. Dari ${f.toFixed(1)} sekarang, itu berarti mulai memotong volume di sekitar H minus 10.`);
     }
     coach.querySelector('.cb-txt').innerHTML = P.map(x=>`<p>${x}</p>`).join('');
   }
@@ -375,24 +420,47 @@
       <path class="atl" d="${path('atl')}"/><path class="ctl" d="${path('ctl')}"/></svg>`;
   }
 
-  /* ================= GRAFIK PENUH (gaya intervals.icu) ================= */
-  const RANGES = [[7,'1 mgg'],[30,'1 bln'],[90,'3 bln'],[180,'6 bln'],[365,'1 thn']];
+  /* ================= GRAFIK PENUH — paritas intervals.icu =================
+     Tata letaknya menyalin intervals.icu: panel Training load per day di atas,
+     panel Form dengan pita zona di tengah, panel Ramp di bawah, sumbu waktu
+     berlabel bulan, dan kolom angka tetap di kanan. Kolom kanan itu sengaja
+     menggantikan tooltip melayang — di layar HP tooltip selalu menabrak garis. */
+  const MON = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const RANGES = [[7,'1 mgg'],[30,'1 bln'],[90,'3 bln'],[180,'6 bln'],[365,'1 thn'],[3000,'Semua']];
   const LAYERS = [['ctl','Fitness'],['atl','Fatigue'],['form','Form'],['ramp','Ramp']];
-  let fullRange = 90, fullIdx = -1;
+  let fullRange = 90, fullIdx = -1, loadedDays = 0;
   let fullOn = { ctl:true, atl:true, form:true, ramp:true };
 
   function fullSeries() {
     const rows = fitRows() || [];
-    /* Ramp = perubahan fitness dalam 7 hari, sama seperti intervals.icu. */
+    /* Ramp = perubahan fitness dalam 7 hari, definisi yang sama dengan intervals.icu. */
     const withRamp = rows.map((r,i) => Object.assign({}, r, {
       ramp: i >= 7 && rows[i-7].ctl != null && r.ctl != null ? +(r.ctl - rows[i-7].ctl).toFixed(1) : null
     }));
     return withRamp.slice(-fullRange);
   }
-  function activityDays() {
-    const s = new Set();
-    if (activities && activities.ok) activities.data.forEach(a => s.add(a.date));
-    return s;
+  function actMap() {
+    const m = new Map();
+    if (activities && activities.ok) activities.data.forEach(a => {
+      if (!m.has(a.date)) m.set(a.date, []);
+      m.get(a.date).push(a);
+    });
+    return m;
+  }
+
+  /* Rentang panjang baru ditarik saat dipilih, supaya buka app pertama kali tetap cepat. */
+  async function ensureDays(d) {
+    const want = Math.min(d + 40, 3000);
+    if (want <= loadedDays) return;
+    const bar = $('#full-read');
+    const old = bar.innerHTML;
+    bar.innerHTML = '<b>Memuat…</b>';
+    try {
+      const [w, a] = await Promise.all([Api.wellness(want), Api.activities(want)]);
+      if (w.ok) { wellness = w; loadedDays = want; }
+      if (a.ok) activities = a;
+      renderFit();
+    } catch (e) { bar.innerHTML = old; }
   }
 
   function openFull() {
@@ -402,12 +470,34 @@
     $('#full-range').innerHTML = RANGES.map(([d,l]) =>
       `<button data-r="${d}"${d===fullRange?' aria-current="true"':''} type="button">${l}</button>`).join('');
     $('#full-layers').innerHTML = LAYERS.map(([k,l]) =>
-      `<button class="lay" data-l="${k}"${fullOn[k]?' aria-current="true"':''} type="button">${l}</button>`).join('');
-    $$('#full-range button').forEach(b => b.onclick = () => { fullRange=+b.dataset.r; fullIdx=-1; openFull(); });
-    $$('#full-layers button').forEach(b => b.onclick = () => { fullOn[b.dataset.l] = !fullOn[b.dataset.l]; openFull(); });
+      `<button class="lay" data-l="${k}" aria-pressed="${fullOn[k]}" type="button">${l}</button>`).join('');
+    $$('#full-range button').forEach(b => b.onclick = async () => {
+      fullRange = +b.dataset.r; fullIdx = -1;
+      $$('#full-range button').forEach(x => x.removeAttribute('aria-current'));
+      b.setAttribute('aria-current','true');
+      await ensureDays(fullRange);
+      drawFull();
+    });
+    $$('#full-layers button').forEach(b => b.onclick = () => {
+      const k = b.dataset.l;
+      fullOn[k] = !fullOn[k];
+      b.setAttribute('aria-pressed', String(fullOn[k]));
+      drawFull();
+    });
     fullIdx = -1; drawFull();
   }
   function closeFull(){ $('#full-chart').hidden = true; document.body.style.overflow=''; }
+
+  /* Skala dengan langkah "bulat" — 1, 2, 2.5, 5, 10 dan kelipatan sepuluhnya. */
+  function niceTicks(lo, hi, n) {
+    const raw = (hi - lo) / Math.max(1,n);
+    if (!(raw > 0)) return [lo];
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = ([1,2,2.5,5,10].map(m => m*mag).find(s => s >= raw)) || 10*mag;
+    const out = [];
+    for (let v = Math.ceil(lo/step)*step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(6));
+    return out;
+  }
 
   function drawFull() {
     const stage = $('#full-stage'), rot = $('#full-rot');
@@ -418,135 +508,213 @@
     const H = portrait ? stage.clientWidth  : stage.clientHeight;
 
     const rows = fullSeries();
-    if (rows.length < 2) { rot.innerHTML = `<div style="display:grid;place-items:center;height:100%;color:var(--fg-3);font-size:13px">Belum cukup data untuk rentang ini.</div>`; $('#full-read').textContent=''; return; }
-    const acts = activityDays();
+    const actm = actMap();
+    const note = m => { rot.innerHTML = `<div class="full-note">${m}</div>`; $('#full-read').textContent=''; $('#full-act').innerHTML=''; };
+    if (rows.length < 2) return note('Belum cukup data untuk rentang ini.');
 
-    const L=42, R=58, T=12, B=24, GAP=10;              /* R lebar: label panel ditaruh di kanan */
-    const subs = ['form','ramp'].filter(k=>fullOn[k]);
-    const mainOn = fullOn.ctl || fullOn.atl;
-    const subH = subs.length ? Math.min(84, (H-T-B-GAP*subs.length) * (mainOn ? 0.26 : 0.9/subs.length)) : 0;
-    const mainH = mainOn ? H - T - B - subs.length*(subH+GAP) : 0;
+    const panels = [];
+    if (fullOn.ctl || fullOn.atl) panels.push('main');
+    if (fullOn.form) panels.push('form');
+    if (fullOn.ramp) panels.push('ramp');
+    if (!panels.length) return note('Nyalakan minimal satu lapisan di bawah.');
+
+    const L = 46, R = 78, T = 10, B = 24, GAP = 9;
+    const wt = { main:0.55, form:0.27, ramp:0.18 };
+    const tot = panels.reduce((s,p)=>s+wt[p],0);
+    const avail = H - T - B - GAP*(panels.length-1);
+    const geo = {}; let yc = T;
+    panels.forEach(p => { const h = avail*wt[p]/tot; geo[p] = { y0:yc, h }; yc += h + GAP; });
     const x = i => L + (i/(rows.length-1))*(W-L-R);
+    const PX = W - R;                                  /* tepi kanan area gambar */
+    const GX = PX + 7;                                 /* awal kolom angka kanan */
 
-    function scale(keys, y0, h, forceZero) {
-      const vals = [];
-      keys.forEach(k => rows.forEach(r => { if (r[k]!=null) vals.push(r[k]); }));
-      if (!vals.length) return null;
-      let lo=Math.min(...vals), hi=Math.max(...vals);
-      if (forceZero) { lo=Math.min(lo,0); hi=Math.max(hi,0); }
-      if (hi===lo){hi=lo+1;lo-=1;} const pad=(hi-lo)*.12; lo-=pad; hi+=pad;
-      return { lo, hi, y: v => y0 + (1-(v-lo)/(hi-lo))*h };
-    }
+    const mk = (lo, hi, y0, h) => ({ lo, hi, y: v => y0 + (1-(v-lo)/(hi-lo))*h });
+    const span = (k) => { const v = rows.map(r=>r[k]).filter(n=>n!=null); return v.length ? [Math.min(...v), Math.max(...v)] : null; };
     const path = (k, sc) => rows.map((r,i)=> r[k]==null?null:((i?'L':'M')+x(i).toFixed(1)+' '+sc.y(r[k]).toFixed(1)))
                                 .filter(Boolean).join(' ').replace(/^L/,'M');
+
     let s = '';
 
-    /* ---------- panel utama: fitness + fatigue ---------- */
+    /* ---------- sumbu waktu: garis bulan + label, sama seperti intervals.icu ---------- */
+    const tick = [];
+    if (rows.length <= 45) {
+      for (let i = rows.length-1; i >= 0; i -= 7) tick.unshift([i, rows[i].date.slice(8)+' '+MON[+rows[i].date.slice(5,7)-1]]);
+    } else {
+      const every = rows.length > 900 ? 3 : rows.length > 420 ? 2 : 1;
+      let last = null, c = 0;
+      rows.forEach((r,i) => {
+        const m = r.date.slice(0,7);
+        if (m === last) return;
+        last = m;
+        const mo = +r.date.slice(5,7);
+        if (c % every === 0) tick.push([i, mo === 1 ? r.date.slice(0,4) : MON[mo-1]]);
+        c++;
+      });
+    }
+    const plotTop = T, plotBot = yc - GAP;
+    tick.forEach(([i,lab]) => {
+      if (i === 0) return;
+      s += `<line class="mline" x1="${x(i).toFixed(1)}" y1="${plotTop}" x2="${x(i).toFixed(1)}" y2="${plotBot.toFixed(1)}"/>`;
+    });
+    tick.forEach(([i,lab]) => {
+      s += `<text class="mlab" x="${x(i).toFixed(1)}" y="${(plotBot+15).toFixed(1)}" text-anchor="middle">${lab}</text>`;
+    });
+
+    const axisTitle = (txt, g) =>
+      `<text class="atitle" transform="rotate(-90 11 ${(g.y0+g.h/2).toFixed(1)})" x="11" y="${(g.y0+g.h/2+3.5).toFixed(1)}" text-anchor="middle">${txt}</text>`;
+    const frame = g => `<rect class="pframe" x="${L}" y="${g.y0.toFixed(1)}" width="${(PX-L).toFixed(1)}" height="${g.h.toFixed(1)}"/>`;
+
+    const i = fullIdx < 0 ? rows.length-1 : Math.min(Math.max(fullIdx,0), rows.length-1);
+    const cur = rows[i];
+    const zone = formZone(cur.form);
+
+    /* ---------- panel 1: training load per day ---------- */
     let scMain = null;
-    if (mainOn) {
-      const keys = ['ctl','atl'].filter(k=>fullOn[k]);
-      scMain = scale(keys, T, mainH);
-      for (let g=0; g<=4; g++){ const v=scMain.lo+(scMain.hi-scMain.lo)*(1-g/4), yy=scMain.y(v);
-        s+=`<line class="grid" x1="${L}" y1="${yy.toFixed(1)}" x2="${W-R}" y2="${yy.toFixed(1)}"/>`;
-        s+=`<text x="6" y="${(yy+4).toFixed(1)}">${v.toFixed(0)}</text>`; }
-      if (fullOn.ctl) s+=`<path class="f-ctl" d="${path('ctl',scMain)} L${x(rows.length-1).toFixed(1)} ${(T+mainH).toFixed(1)} L${L} ${(T+mainH).toFixed(1)} Z"/>`;
-      if (fullOn.atl) s+=`<path class="l-atl" d="${path('atl',scMain)}"/>`;
-      if (fullOn.ctl) s+=`<path class="l-ctl" d="${path('ctl',scMain)}"/>`;
-      /* titik merah = ada aktivitas hari itu, sama seperti intervals.icu */
-      rows.forEach((r,i)=>{ if (acts.has(r.date))
-        s+=`<circle class="actdot" cx="${x(i).toFixed(1)}" cy="${(T+mainH-4).toFixed(1)}" r="2.4"/>`; });
-      s+=`<text class="plab" x="${W-R+6}" y="${(T+11).toFixed(1)}">BEBAN</text>`;
+    if (geo.main) {
+      const g = geo.main;
+      const sp = span('ctl') || span('atl') || [0,10];
+      const spA = span('atl');
+      const hi = Math.max(sp[1], spA ? spA[1] : 0) * 1.08 || 10;
+      scMain = mk(0, hi, g.y0, g.h);
+      s += frame(g);
+      niceTicks(0, hi, 6).forEach(v => {
+        const yy = scMain.y(v);
+        if (yy < g.y0 - 1) return;
+        s += `<line class="grid" x1="${L}" y1="${yy.toFixed(1)}" x2="${PX}" y2="${yy.toFixed(1)}"/>`;
+        s += `<text class="tick" x="${L-5}" y="${(yy+3.5).toFixed(1)}" text-anchor="end">${v}</text>`;
+      });
+      if (fullOn.ctl) {
+        s += `<path class="f-ctl" d="${path('ctl',scMain)} L${x(rows.length-1).toFixed(1)} ${(g.y0+g.h).toFixed(1)} L${L} ${(g.y0+g.h).toFixed(1)} Z"/>`;
+        /* garis putus-putus di level fitness hari terpilih, seperti intervals.icu */
+        if (cur.ctl != null) s += `<line class="hnow" x1="${L}" y1="${scMain.y(cur.ctl).toFixed(1)}" x2="${PX}" y2="${scMain.y(cur.ctl).toFixed(1)}"/>`;
+      }
+      if (fullOn.atl) s += `<path class="l-atl" d="${path('atl',scMain)}"/>`;
+      if (fullOn.ctl) s += `<path class="l-ctl" d="${path('ctl',scMain)}"/>`;
+      /* baris titik merah = hari yang ada aktivitasnya */
+      const ay = g.y0 + g.h - 5;
+      rows.forEach((r,k) => { if (actm.has(r.date))
+        s += `<circle class="actdot${k===i?' on':''}" cx="${x(k).toFixed(1)}" cy="${ay.toFixed(1)}" r="${k===i?3.4:2.4}"/>`; });
+      s += axisTitle('Training load per day', g);
+
+      /* kolom kanan: tanggal + angka hari terpilih */
+      const d = UI.parse(cur.date);
+      s += `<text class="rd" x="${GX}" y="${(g.y0+12).toFixed(1)}">${UI.shortDate(cur.date).dow} ${String(d.getDate()).padStart(2,'0')}</text>`;
+      s += `<text class="rd" x="${GX}" y="${(g.y0+24).toFixed(1)}">${MON[d.getMonth()]} ${d.getFullYear()}</text>`;
+      let ry = g.y0 + 46;
+      if (fullOn.ctl && cur.ctl != null) {
+        s += `<text class="rk" x="${GX}" y="${ry.toFixed(1)}">Fitness</text>`;
+        s += `<text class="rv" style="fill:var(--c-ctl)" x="${GX}" y="${(ry+15).toFixed(1)}">${Math.round(cur.ctl)}</text>`; ry += 34;
+      }
+      if (fullOn.atl && cur.atl != null) {
+        s += `<text class="rk" x="${GX}" y="${ry.toFixed(1)}">Fatigue</text>`;
+        s += `<text class="rv" style="fill:var(--c-atl)" x="${GX}" y="${(ry+15).toFixed(1)}">${Math.round(cur.atl)}</text>`; ry += 34;
+      }
+      if (cur.form != null && ry + 30 < g.y0 + g.h) {
+        s += `<text class="rk" x="${GX}" y="${ry.toFixed(1)}">Form</text>`;
+        s += `<text class="rv" style="fill:var(${zone.v})" x="${GX}" y="${(ry+15).toFixed(1)}">${cur.form>0?'+':''}${Math.round(cur.form)}</text>`;
+      }
     }
 
-    /* ---------- panel form: pita zona + garis berwarna per zona ---------- */
-    const scSub = {};
-    let yCur = T + mainH;
-    subs.forEach(k => {
-      yCur += GAP;
-      const y0 = yCur;
-      const sc = scale([k], y0, subH, k==='ramp'); scSub[k]=sc;
-      s+=`<rect class="panelbg" x="${L}" y="${y0.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${subH.toFixed(1)}" rx="6"/>`;
-      if (!sc) { yCur += subH; return; }
-
-      if (k === 'form') {
-        /* pita zona intervals.icu, digambar hanya sepanjang yang terlihat */
-        const bounds = [[25,999,'--z-transition','Transition'],[5,25,'--z-fresh','Fresh'],
-                        [-10,5,'--z-grey','Grey Zone'],[-30,-10,'--z-optimal','Optimal'],
-                        [-999,-30,'--z-risk','High Risk']];
-        bounds.forEach(([blo,bhi,cv,nm]) => {
-          const a1 = Math.max(blo, sc.lo), b1 = Math.min(bhi, sc.hi);
-          if (b1 <= a1) return;
-          const yTop = sc.y(b1), yBot = sc.y(a1);
-          s+=`<rect class="zband" x="${L}" y="${yTop.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${(yBot-yTop).toFixed(1)}" fill="var(${cv})"/>`;
-          /* label zona ikut di talang kanan; lewati kalau bertabrakan dengan label panel FORM */
-          const zy = (yTop+yBot)/2+3;
-          if (yBot - yTop > 11 && Math.abs(zy - (y0+11)) > 13) s+=`<text class="zlab" x="${W-R+6}" y="${zy.toFixed(1)}" style="fill:var(${cv})">${nm}</text>`;
-        });
-        /* garis form diwarnai mengikuti zona titik awal tiap ruas */
-        for (let i=1;i<rows.length;i++){
-          if (rows[i-1].form==null||rows[i].form==null) continue;
-          const z = formZone(rows[i-1].form);
-          s+=`<line x1="${x(i-1).toFixed(1)}" y1="${sc.y(rows[i-1].form).toFixed(1)}"
-                    x2="${x(i).toFixed(1)}" y2="${sc.y(rows[i].form).toFixed(1)}"
-                    stroke="var(${z.v})" stroke-width="2" stroke-linecap="round"/>`;
+    /* ---------- panel 2: form + pita zona ---------- */
+    let scForm = null;
+    if (geo.form) {
+      const g = geo.form;
+      const sp = span('form') || [-10,5];
+      const lo = Math.min(sp[0]-4, -34), hi = Math.max(sp[1]+4, 26);
+      scForm = mk(lo, hi, g.y0, g.h);
+      const bands = [[25,999,'--z-transition','Transition'],[5,25,'--z-fresh','Fresh'],
+                     [-10,5,'--z-grey','Grey Zone'],[-30,-10,'--z-optimal','Optimal'],
+                     [-999,-30,'--z-risk','High Risk']];
+      const lab = [];
+      bands.forEach(([blo,bhi,cv,nm]) => {
+        const a1 = Math.max(blo, lo), b1 = Math.min(bhi, hi);
+        if (b1 > a1) {
+          const yT = scForm.y(b1), yB = scForm.y(a1);
+          s += `<rect class="zband" x="${L}" y="${yT.toFixed(1)}" width="${(PX-L).toFixed(1)}" height="${(yB-yT).toFixed(1)}" fill="var(${cv})"/>`;
+          lab.push([ (yT+yB)/2, cv, nm ]);
+        } else {
+          lab.push([ blo >= hi ? g.y0 : g.y0+g.h, cv, nm ]);
         }
-      } else {
-        /* ramp: area di atas nol hijau, di bawah nol biru, seperti intervals.icu */
-        const yz = sc.y(0);
-        s+=`<path class="f-ramp-pos" d="${path('ramp',sc)} L${x(rows.length-1).toFixed(1)} ${yz.toFixed(1)} L${L} ${yz.toFixed(1)} Z" clip-path="url(#clipPos${Math.round(y0)})"/>`;
-        s+=`<clipPath id="clipPos${Math.round(y0)}"><rect x="${L}" y="${y0.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${(yz-y0).toFixed(1)}"/></clipPath>`;
-        s+=`<path class="f-ramp-neg" d="${path('ramp',sc)} L${x(rows.length-1).toFixed(1)} ${yz.toFixed(1)} L${L} ${yz.toFixed(1)} Z" clip-path="url(#clipNeg${Math.round(y0)})"/>`;
-        s+=`<clipPath id="clipNeg${Math.round(y0)}"><rect x="${L}" y="${yz.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${(y0+subH-yz).toFixed(1)}"/></clipPath>`;
-        s+=`<line class="zero" x1="${L}" y1="${yz.toFixed(1)}" x2="${W-R}" y2="${yz.toFixed(1)}"/>`;
-        s+=`<path class="l-ramp" d="${path('ramp',sc)}"/>`;
-        s+=`<text class="plab" x="${W-R+6}" y="${(y0+11).toFixed(1)}" style="fill:var(--c-ramp)">RAMP</text>`;
+      });
+      /* semua nama zona selalu tampil di kanan, dijaga tidak saling tindih */
+      let prev = -99;
+      lab.forEach(([yy,cv,nm]) => {
+        const y2 = Math.max(Math.min(yy, g.y0+g.h-3), g.y0+9, prev+11);
+        prev = y2;
+        s += `<text class="zlab" style="fill:var(${cv})" x="${GX}" y="${y2.toFixed(1)}">${nm}</text>`;
+      });
+      /* garis batas zona = garis bantu sumbu Y, angkanya juga batas zona */
+      [25,5,-10,-30].forEach(v => {
+        if (v < lo || v > hi) return;
+        const yy = scForm.y(v);
+        s += `<line class="grid" x1="${L}" y1="${yy.toFixed(1)}" x2="${PX}" y2="${yy.toFixed(1)}"/>`;
+        s += `<text class="tick" x="${L-5}" y="${(yy+3.5).toFixed(1)}" text-anchor="end">${v}</text>`;
+      });
+      for (let k=1;k<rows.length;k++){
+        if (rows[k-1].form==null||rows[k].form==null) continue;
+        s += `<line class="fseg" x1="${x(k-1).toFixed(1)}" y1="${scForm.y(rows[k-1].form).toFixed(1)}" x2="${x(k).toFixed(1)}" y2="${scForm.y(rows[k].form).toFixed(1)}" stroke="var(${formZone(rows[k-1].form).v})"/>`;
       }
-      if (k==='form') s+=`<text class="plab" x="${W-R+6}" y="${(y0+11).toFixed(1)}" style="fill:var(--fg-3)">FORM</text>`;
-      s+=`<text x="6" y="${(y0+11).toFixed(1)}">${sc.hi.toFixed(0)}</text>`;
-      s+=`<text x="6" y="${(y0+subH-2).toFixed(1)}">${sc.lo.toFixed(0)}</text>`;
-      yCur += subH;
-    });
+      s += frame(g);
+      s += axisTitle('Form', g);
+    }
 
-    /* ---------- kursor + tooltip ---------- */
-    const i = fullIdx<0 ? rows.length-1 : Math.min(Math.max(fullIdx,0), rows.length-1);
+    /* ---------- panel 3: ramp ---------- */
+    let scRamp = null;
+    if (geo.ramp) {
+      const g = geo.ramp;
+      const sp = span('ramp') || [-1,1];
+      const m = Math.max(Math.abs(sp[0]), Math.abs(sp[1]), 1) * 1.15;
+      scRamp = mk(-m, m, g.y0, g.h);
+      const yz = scRamp.y(0);
+      const cid = 'cp'+Math.round(g.y0);
+      s += `<defs><clipPath id="${cid}p"><rect x="${L}" y="${g.y0.toFixed(1)}" width="${(PX-L).toFixed(1)}" height="${(yz-g.y0).toFixed(1)}"/></clipPath>
+            <clipPath id="${cid}n"><rect x="${L}" y="${yz.toFixed(1)}" width="${(PX-L).toFixed(1)}" height="${(g.y0+g.h-yz).toFixed(1)}"/></clipPath></defs>`;
+      const area = `${path('ramp',scRamp)} L${x(rows.length-1).toFixed(1)} ${yz.toFixed(1)} L${L} ${yz.toFixed(1)} Z`;
+      s += `<path class="f-ramp-pos" d="${area}" clip-path="url(#${cid}p)"/>`;
+      s += `<path class="f-ramp-neg" d="${area}" clip-path="url(#${cid}n)"/>`;
+      s += `<line class="zero" x1="${L}" y1="${yz.toFixed(1)}" x2="${PX}" y2="${yz.toFixed(1)}"/>`;
+      s += `<path class="l-ramp" d="${path('ramp',scRamp)}"/>`;
+      s += `<text class="tick" x="${L-5}" y="${(g.y0+9).toFixed(1)}" text-anchor="end">${m.toFixed(1)}</text>`;
+      s += `<text class="tick" x="${L-5}" y="${(g.y0+g.h-2).toFixed(1)}" text-anchor="end">-${m.toFixed(1)}</text>`;
+      s += frame(g);
+      s += axisTitle('Ramp', g);
+      if (cur.ramp != null) {
+        s += `<text class="rk" x="${GX}" y="${(g.y0+12).toFixed(1)}">Ramp</text>`;
+        s += `<text class="rv" style="fill:var(--c-ramp)" x="${GX}" y="${(g.y0+27).toFixed(1)}">${cur.ramp>0?'+':''}${cur.ramp.toFixed(1)}</text>`;
+      }
+    }
+
+    /* ---------- kursor ---------- */
     const cx = x(i);
-    s+=`<line class="cursor" x1="${cx.toFixed(1)}" y1="${T}" x2="${cx.toFixed(1)}" y2="${(H-B).toFixed(1)}"/>`;
-    if (scMain && fullOn.ctl && rows[i].ctl!=null) s+=`<circle style="fill:var(--c-ctl)" cx="${cx.toFixed(1)}" cy="${scMain.y(rows[i].ctl).toFixed(1)}" r="4.5"/>`;
-    if (scMain && fullOn.atl && rows[i].atl!=null) s+=`<circle style="fill:var(--c-atl)" cx="${cx.toFixed(1)}" cy="${scMain.y(rows[i].atl).toFixed(1)}" r="4"/>`;
-    subs.forEach(k => { if (scSub[k] && rows[i][k]!=null) {
-      const col = k==='form' ? `var(${formZone(rows[i].form).v})` : 'var(--c-ramp)';
-      s+=`<circle style="fill:${col}" cx="${cx.toFixed(1)}" cy="${scSub[k].y(rows[i][k]).toFixed(1)}" r="4"/>`; } });
-
-    const lines = [];
-    LAYERS.forEach(([k,l]) => { if (fullOn[k] && rows[i][k]!=null) {
-      const col = k==='form' ? formZone(rows[i][k]).v : '--c-'+k;
-      lines.push([l, (k==='form'&&rows[i][k]>0?'+':'')+rows[i][k], col]); } });
-    if (rows[i].form!=null && fullOn.form) lines.push(['Zona', formZone(rows[i].form).name, formZone(rows[i].form).v]);
-    const bw = 132, bh = 22 + lines.length*15;
-    let bx = cx + 12; if (bx + bw > W-R) bx = cx - 12 - bw;
-    bx = Math.max(L+2, bx);
-    const by = T + 4;                                   /* selalu di panel atas, tidak menimpa label panel */
-    s+=`<g><rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${bh}" rx="9"
-         fill="var(--bg)" stroke="var(--rule)"/>
-         <text x="${(bx+10).toFixed(1)}" y="${(by+16).toFixed(1)}" style="fill:var(--fg);font-size:11px;font-weight:600">${UI.fmt(rows[i].date, true)}</text>`;
-    lines.forEach((ln,j) => {
-      const yy = by + 32 + j*15;
-      s+=`<rect x="${(bx+10).toFixed(1)}" y="${(yy-4).toFixed(1)}" width="10" height="2.5" rx="1.2" fill="var(${ln[2]})"/>`;
-      s+=`<text x="${(bx+25).toFixed(1)}" y="${yy.toFixed(1)}" style="fill:var(--fg-2);font-size:10.5px">${ln[0]}</text>`;
-      s+=`<text x="${(bx+bw-10).toFixed(1)}" y="${yy.toFixed(1)}" text-anchor="end" style="fill:var(--fg);font-size:11px;font-weight:600">${ln[1]}</text>`;
-    });
-    s+=`</g>`;
-    s+=`<text x="${L}" y="${(H-7).toFixed(1)}">${UI.fmt(rows[0].date)}</text>`;
-    s+=`<text x="${W-R}" y="${(H-7).toFixed(1)}" text-anchor="end">${UI.fmt(rows[rows.length-1].date)}</text>`;
+    s += `<line class="cursor" x1="${cx.toFixed(1)}" y1="${plotTop}" x2="${cx.toFixed(1)}" y2="${plotBot.toFixed(1)}"/>`;
+    if (scMain && fullOn.ctl && cur.ctl!=null) s += `<circle class="knobc" style="fill:var(--c-ctl)" cx="${cx.toFixed(1)}" cy="${scMain.y(cur.ctl).toFixed(1)}" r="4"/>`;
+    if (scMain && fullOn.atl && cur.atl!=null) s += `<circle class="knobc" style="fill:var(--c-atl)" cx="${cx.toFixed(1)}" cy="${scMain.y(cur.atl).toFixed(1)}" r="3.6"/>`;
+    if (scForm && cur.form!=null) s += `<circle class="knobc" style="fill:var(${zone.v})" cx="${cx.toFixed(1)}" cy="${scForm.y(cur.form).toFixed(1)}" r="3.6"/>`;
+    if (scRamp && cur.ramp!=null) s += `<circle class="knobc" style="fill:var(--c-ramp)" cx="${cx.toFixed(1)}" cy="${scRamp.y(cur.ramp).toFixed(1)}" r="3.6"/>`;
 
     rot.innerHTML = `<svg class="fchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${s}</svg>`;
-    $('#full-read').innerHTML = `<b>${UI.fmt(rows[i].date, true)}</b> · ${rows.length} hari`;
+
+    /* ---------- baris aktivitas: isi titik merah, dibaca tegak di luar rotasi ---------- */
+    const lab = RANGES.find(r => r[0] === fullRange);
+    $('#full-read').innerHTML = `<b>${UI.fmt(cur.date, true)}</b> · ${lab ? lab[1] : rows.length+' hari'} · ${rows.length} hari`;
+    const list = actm.get(cur.date) || [];
+    $('#full-act').innerHTML = list.length
+      ? list.map(a => `<div class="arow"><b>${a.name || a.type || 'Aktivitas'}</b>${[
+          a.km != null ? a.km.toFixed(2)+' km' : null,
+          a.moving_s ? UI.dur(a.moving_s) : null,
+          a.pace_s_per_km ? UI.pace(a.pace_s_per_km)+'/km' : null,
+          a.avg_hr ? Math.round(a.avg_hr)+' bpm' : null,
+          a.load != null ? 'Load '+Math.round(a.load) : null
+        ].filter(Boolean).map(t=>`<span>${t}</span>`).join('')}</div>`).join('')
+      : `<div class="arow empty">Tidak ada aktivitas di tanggal ini. Geser jari di grafik untuk pindah hari.</div>`;
 
     stage.onpointerdown = stage.onpointermove = e => {
       if (e.type==='pointermove' && e.buttons===0) return;
       const r0 = stage.getBoundingClientRect();
       const p = portrait ? (e.clientY-r0.top)/r0.height : (e.clientX-r0.left)/r0.width;
-      fullIdx = Math.round(clamp(p,0,1)*(rows.length-1));
+      const w0 = portrait ? r0.height : r0.width;
+      const frac = clamp((p*w0 - L) / Math.max(1, (portrait ? r0.height : r0.width) - L - R), 0, 1);
+      fullIdx = Math.round(frac*(rows.length-1));
       drawFull();
     };
   }
@@ -1117,7 +1285,7 @@
     if (sel > today) sel = today;
     renderAll();
   }
-  async function pull() { [wellness, activities] = await Promise.all([Api.wellness(365), Api.activities(42)]); }
+  async function pull() { loadedDays = 400; [wellness, activities] = await Promise.all([Api.wellness(400), Api.activities(400)]); }
 
   (async function boot() {
     wire();
