@@ -87,7 +87,7 @@
     </div>
 
     <div class="panelcard" id="c-fit-card">
-      <div class="pc-head"><h2>Body fit</h2><button class="link" id="c-fit" type="button">Grafik penuh ›</button></div>
+      <div class="pc-head"><h2>Training Status</h2><button class="link" id="c-fit" type="button">Grafik penuh ›</button></div>
       <div id="fit-body"></div>
       <div class="coachbox" id="fit-coach"><i class="ic ic-coach" aria-hidden="true"></i><div class="cb-txt"></div></div>
     </div>
@@ -118,6 +118,15 @@
     </nav>
 
     <div class="panel on" data-panel="recovery">
+      <div class="panelcard" id="c-sleep">
+        <div class="pc-head"><h2>Tidur malam</h2><button class="link" data-open-log="badan" type="button">Isi manual</button></div>
+        <div id="sleep-hypno"></div>
+      </div>
+      <div class="panelcard">
+        <div class="pc-head"><h2>Metrik pemulihan</h2></div>
+        <div class="smetrics" id="sleep-metrics"></div>
+      </div>
+      <div class="coachbox" id="rec-coach"><i class="ic ic-coach" aria-hidden="true"></i><div class="cb-txt"></div></div>
       <div class="stats" id="rec-stats"></div>
       <div class="card"><div class="card-head"><h2>Tidur (jam)</h2></div><div id="chart-sleep"></div></div>
       <div class="card"><div class="card-head"><h2>HRV (ms)</h2></div><div id="chart-hrv"></div></div>
@@ -300,12 +309,23 @@
       <div class="field"><label for="f-weight">Berat (kg)</label><input id="f-weight" type="number" inputmode="decimal" step="0.1" placeholder="70.0"></div>
       <div class="field"><label for="f-bf">Body fat (%)</label><input id="f-bf" type="number" inputmode="decimal" step="0.1" placeholder="19"></div>
     </div>
-    <p class="note-sm">Tiga angka di bawah disalin dari app Zepp.</p>
+    <p class="note-sm">Angka di bawah disalin dari app Zepp. Yang diketik manual selalu menimpa yang masuk otomatis dari intervals.icu.</p>
     <div class="row">
       <div class="field"><label for="f-sleep">Tidur (jam)</label><input id="f-sleep" type="number" inputmode="decimal" step="0.25" placeholder="7"></div>
       <div class="field"><label for="f-hrv">HRV (ms)</label><input id="f-hrv" type="number" inputmode="numeric" placeholder="45"></div>
     </div>
     <div class="field"><label for="f-rhr">Resting HR (bpm)</label><input id="f-rhr" type="number" inputmode="numeric" placeholder="52"></div>
+    <p class="note-sm">Jam tidur dan tahapannya. Format jam 23:23, format durasi 1:23.</p>
+    <div class="row">
+      <div class="field"><label for="f-bed">Mulai tidur</label><input id="f-bed" type="text" inputmode="numeric" placeholder="23:23"></div>
+      <div class="field"><label for="f-wake">Bangun</label><input id="f-wake" type="text" inputmode="numeric" placeholder="05:43"></div>
+    </div>
+    <div class="row three">
+      <div class="field"><label for="f-deep">Deep</label><input id="f-deep" type="text" inputmode="numeric" placeholder="1:23"></div>
+      <div class="field"><label for="f-rem">REM</label><input id="f-rem" type="text" inputmode="numeric" placeholder="1:39"></div>
+      <div class="field"><label for="f-awake">Terjaga</label><input id="f-awake" type="text" inputmode="numeric" placeholder="0:04"></div>
+    </div>
+    <div class="field"><label for="f-nap">Tidur siang</label><input id="f-nap" type="text" inputmode="numeric" placeholder="0:25"></div>
   </div>
 
   <div class="log-panel" data-log-panel="foto">

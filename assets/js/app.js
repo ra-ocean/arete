@@ -127,14 +127,14 @@
     sel = k; renderAll();
   }
 
-  /* ================= VONIS HARI ================= */
-  /* Hero pagi harus terasa seperti pesan singkat dari coach.
-     Satu kondisi, satu alasan yang paling relevan, satu keputusan untuk sesi hari ini.
-     Jangan menumpuk semua data dan jangan memakai metafora. */
+  /* ================= VONIS HARI =================
+     Dua kalimat, suara coach. Kalimat kedua wajib menyebut sesi hari itu dan,
+     kalau ada sinyal pemulihan yang menyimpang, menyebut alasannya. App tidak
+     pernah menentukan pace atau repetisi lari — itu wilayah plan coach. */
   const briefNum = v => {
     const n = +v;
     if (!Number.isFinite(n)) return String(v);
-    return (Math.round(n * 10) / 10).toString().replace('.', ',');
+    return (Math.round(n * 10) / 10).toString();
   };
 
   function recoveryCue(r) {
@@ -185,92 +185,75 @@
 
   function doseLine(w, lvl, r) {
     const cue = recoveryCue(r);
-    const adaAlasan = cue.type !== 'none';
+    const ada = cue.type !== 'none';
 
     if (!w) {
-      return lvl === 'lo'
-        ? `Hari ini jangan tambah latihan di luar rencana.`
-        : `Jalankan sesi sesuai rencana, nggak perlu ditambah sendiri.`;
+      return lvl === 'lo' ? `Hari ini jangan tambah latihan di luar rencana.`
+                          : `Jalankan sesi sesuai rencana, tidak perlu ditambah sendiri.`;
     }
 
     if (w.kind === 'st') {
       if (lvl === 'hi') {
-        return adaAlasan
-          ? `${w.title} pakai beban biasa, tapi ${cue.text}, jadi nggak perlu naik beban hari ini.`
-          : `${w.title} pakai beban penuh, dan kalau semua set masih rapi dengan sekitar 2 reps sisa, catat progresi 2,5 kg untuk minggu depan.`;
+        return ada ? `${w.title} pakai beban biasa, tapi ${cue.text}, jadi tidak perlu naik beban hari ini.`
+                   : `${w.title} pakai beban penuh. Kalau semua set masih rapi dengan sekitar dua reps tersisa, catat progresi 2,5 kg untuk minggu depan.`;
       }
       if (lvl === 'mid') {
-        return adaAlasan
-          ? `${w.title} tetap jalan dengan beban terakhir, tapi ${cue.text}, jadi jangan naik beban hari ini.`
-          : `${w.title} pakai beban yang sama dengan minggu lalu, jangan naik beban hari ini.`;
+        return ada ? `${w.title} tetap jalan dengan beban terakhir, tapi ${cue.text}, jadi jangan naik beban hari ini.`
+                   : `${w.title} pakai beban yang sama dengan minggu lalu, jangan naik beban hari ini.`;
       }
-      return adaAlasan
-        ? `${w.title} turunkan beban 10 sampai 15 persen karena ${cue.text}, set dan reps tetap.`
-        : `${w.title} turunkan beban 10 sampai 15 persen, set dan reps tetap.`;
+      return ada ? `${w.title} turunkan beban 10 sampai 15 persen karena ${cue.text}. Set dan repsnya tetap.`
+                 : `${w.title} turunkan beban 10 sampai 15 persen. Set dan repsnya tetap.`;
     }
 
     if (w.kind === 'run') {
       if (/kualitas/i.test(w.title)) {
         if (lvl === 'hi') {
-          return adaAlasan
-            ? `Sesi kualitas tetap jalan sesuai plan coach, tapi ${cue.text}, jadi jangan tambah repetisi atau pace sendiri.`
-            : `Sesi kualitas jalan sesuai plan coach, nggak perlu ditambah meskipun badan terasa enak.`;
+          return ada ? `Sesi kualitas tetap jalan sesuai plan coach, tapi ${cue.text}, jadi jangan tambah repetisi atau pace sendiri.`
+                     : `Sesi kualitas jalan sesuai plan coach. Tidak perlu ditambah walaupun badan terasa enak.`;
         }
         if (lvl === 'mid') {
-          return adaAlasan
-            ? `Sesi kualitas tetap ikuti plan coach, tapi ${cue.text}, jadi pakai pemanasan buat cek badan dan jangan dipaksa kalau effort terasa jauh lebih berat dari biasanya.`
-            : `Sesi kualitas tetap ikuti plan coach, pakai pemanasan buat cek badan dan jangan dipaksa kalau effort terasa jauh lebih berat dari biasanya.`;
+          return ada ? `Sesi kualitas tetap ikuti plan coach, tapi ${cue.text}. Pakai pemanasan untuk cek badan, dan jangan dipaksa kalau effort terasa jauh lebih berat dari biasanya.`
+                     : `Sesi kualitas ikuti plan coach. Pakai pemanasan untuk cek badan, dan jangan dipaksa kalau effort terasa jauh lebih berat dari biasanya.`;
         }
-        return adaAlasan
-          ? `Sesi kualitas jangan dipaksa hari ini karena ${cue.text}, mulai easy dulu dan stop kalau badan tetap berat.`
-          : `Sesi kualitas jangan dipaksa hari ini, mulai easy dulu dan stop kalau badan tetap berat.`;
+        return ada ? `Sesi kualitas jangan dipaksa hari ini karena ${cue.text}. Mulai easy dulu dan berhenti kalau badan tetap berat.`
+                   : `Sesi kualitas jangan dipaksa hari ini. Mulai easy dulu dan berhenti kalau badan tetap berat.`;
       }
-
       if (/long/i.test(w.title)) {
         if (lvl === 'hi') {
-          return adaAlasan
-            ? `Long run tetap jalan sesuai plan coach, tapi ${cue.text}, jadi jaga effort easy dan jangan tambah durasi.`
-            : `Long run jalan sesuai plan coach dan tetap easy sampai selesai.`;
+          return ada ? `Long run tetap jalan sesuai plan coach, tapi ${cue.text}, jadi jaga effort easy dan jangan tambah durasi.`
+                     : `Long run jalan sesuai plan coach dan tetap easy sampai selesai.`;
         }
         if (lvl === 'mid') {
-          return adaAlasan
-            ? `Long run tetap jalan, tapi ${cue.text}, jadi pilih durasi paling pendek dari rentang yang dikasih coach dan tetap easy.`
-            : `Long run tetap jalan, pilih durasi paling pendek dari rentang yang dikasih coach dan tetap easy.`;
+          return ada ? `Long run tetap jalan, tapi ${cue.text}, jadi ambil durasi paling pendek dari rentang yang dikasih coach.`
+                     : `Long run tetap jalan, ambil durasi paling pendek dari rentang yang dikasih coach.`;
         }
-        return adaAlasan
-          ? `Long run jangan dipaksa penuh karena ${cue.text}, cukup easy 30 sampai 45 menit dan lihat lagi respons badan setelahnya.`
-          : `Long run jangan dipaksa penuh hari ini, cukup easy 30 sampai 45 menit dan lihat lagi respons badan setelahnya.`;
+        return ada ? `Long run jangan dipaksa penuh karena ${cue.text}. Cukup easy 30 sampai 45 menit, lalu lihat lagi respons badan setelahnya.`
+                   : `Long run jangan dipaksa penuh hari ini. Cukup easy 30 sampai 45 menit, lalu lihat lagi respons badan setelahnya.`;
       }
-
       if (lvl === 'hi') {
-        return adaAlasan
-          ? `Easy run hari ini tetap easy, tapi ${cue.text}, jadi nggak perlu cari pace.`
-          : `Easy run tetap easy, kondisi bagus bukan alasan buat ngebut.`;
+        return ada ? `Easy run tetap easy, dan ${cue.text}, jadi tidak perlu cari pace.`
+                   : `Easy run tetap easy. Kondisi bagus bukan alasan untuk ngebut.`;
       }
       if (lvl === 'mid') {
-        return adaAlasan
-          ? `Easy run tetap jalan, tapi ${cue.text}, jadi jaga effort ringan dan nggak perlu tambah durasi.`
-          : `Easy run tetap jalan, jaga effort ringan dan nggak perlu tambah durasi.`;
+        return ada ? `Easy run tetap jalan, tapi ${cue.text}, jadi jaga effort ringan dan tidak perlu tambah durasi.`
+                   : `Easy run tetap jalan, jaga effort ringan dan tidak perlu tambah durasi.`;
       }
-      return adaAlasan
-        ? `Easy run hari ini cukup 20 sampai 30 menit karena ${cue.text}, dan stop kalau 10 menit awal masih terasa berat.`
-        : `Easy run hari ini cukup 20 sampai 30 menit, dan stop kalau 10 menit awal masih terasa berat.`;
+      return ada ? `Easy run hari ini cukup 20 sampai 30 menit karena ${cue.text}. Berhenti kalau 10 menit awal masih terasa berat.`
+                 : `Easy run hari ini cukup 20 sampai 30 menit. Berhenti kalau 10 menit awal masih terasa berat.`;
     }
 
     if (lvl === 'lo') {
-      return adaAlasan
-        ? `Slot fleksibel hari ini cukup mobility karena ${cue.text}, nggak perlu tambah latihan beban.`
-        : `Slot fleksibel hari ini cukup mobility, nggak perlu tambah latihan beban.`;
+      return ada ? `Slot fleksibel hari ini cukup mobility karena ${cue.text}. Tidak perlu tambah latihan beban.`
+                 : `Slot fleksibel hari ini cukup mobility. Tidak perlu tambah latihan beban.`;
     }
-
-    return `Kalau tidak ada sesi coach, pilih Sesi A atau B yang belum dikerjakan minggu ini.`;
+    return `Slot fleksibel: kalau tidak ada sesi coach, ambil Sesi A atau B yang belum dikerjakan minggu ini.`;
   }
 
-  function morningTitle(score, nama) {
-    return score >= 80 ? `Pagi ini kondisimu bagus, ${nama}`
-         : score >= 65 ? `Kondisimu cukup oke pagi ini, ${nama}`
-         : score >= 50 ? `Hari ini jangan terlalu dipaksa, ${nama}`
-                       : `Recovery-mu belum bagus pagi ini, ${nama}`;
+  function dayTitle(score, nama) {
+    return score >= 80 ? `Badanmu siap dipakai, ${nama}`
+         : score >= 65 ? `Kondisimu cukup, ${nama}`
+         : score >= 50 ? `Jangan terlalu dipaksa hari ini, ${nama}`
+                       : `Badanmu belum pulih, ${nama}`;
   }
 
   function verdict() {
@@ -284,40 +267,28 @@
     const w = PLAN.week[UI.dow(sel)];
 
     if (kosong && r.score == null) {
-      return { t: hariIni ? `Belum cukup data pagi ini, ${nama}` : 'Hari ini kosong',
-               s: hariIni ? 'Masukkan jam tidur dulu supaya Areté punya dasar untuk membaca kondisimu.'
+      return { t: hariIni ? `Belum ada catatan hari ini, ${nama}` : 'Hari ini kosong',
+               s: hariIni ? 'Isi satu angka saja dulu, berat badan atau jam tidur. Sisanya menyusul.'
                           : 'Tidak ada yang tercatat di tanggal ini.' };
     }
-
     if (trained && dailyDone === 3) {
       return { t: `Hari yang lengkap, ${nama}`,
                s: `Sesi utama jalan dan daily track selesai semua. Inilah yang kalau diulang cukup sering akan kelihatan hasilnya di bulan ketiga.` };
     }
-
     if (trained) {
       return { t: `Sesi utama sudah beres, ${nama}`,
                s: dailyDone ? `Daily track baru ${dailyDone} dari 3. Sisanya sekitar lima menit, kerjakan sebelum tidur.`
                             : `Daily track belum disentuh. Abs, calf, dan hip totalnya 15 sampai 20 menit dan bisa dikerjakan di kamar.` };
     }
-
     if (r.score != null) {
       const lvl = r.score >= 80 ? 'hi' : r.score >= 50 ? 'mid' : 'lo';
-
-      if (hariIni) {
-        return {
-          t: morningTitle(r.score, nama),
-          s: `Skor kesiapanmu ${r.score}. ${doseLine(w, lvl, r)}`
-        };
-      }
-
-      return {
-        t: `Skor kesiapanmu hari itu ${r.score}, ${nama}`,
-        s: doseLine(w, lvl, r)
-      };
+      /* Angka skornya sudah tampil besar di ring tepat di bawah kalimat ini,
+         jadi tidak diulang di sini. */
+      return { t: hariIni ? dayTitle(r.score, nama) : `${dayTitle(r.score, '').replace(/,\s*$/,'')} waktu itu`,
+               s: `${doseLine(w, lvl, r)}${lvl === 'hi' ? ' Daily track tetap dikerjakan malamnya.' : ''}` };
     }
-
     return { t: `Belum ada latihan hari ini, ${nama}`,
-             s: `Rencananya ada di bawah. Jalankan sesi utama sesuai plan, daily track bisa nanti malam.` };
+             s: `Rencananya ada di bawah. Kalau waktumu mepet, kerjakan daily track saja, itu yang paling tidak boleh bolong.` };
   }
 
   /* ================= TARGET ================= */
@@ -439,7 +410,7 @@
     $('#ready-mini').innerHTML = mini('Tidur',r.sleep,'j')+mini('HRV',r.hrv,'ms')+mini('Resting HR',r.rhr,'bpm');
   }
 
-  /* ================= BODY FIT ================= */
+  /* ================= TRAINING STATUS ================= */
   function connectBlock(reason, short) {
     const msg = {
       no_backend:['Belum tersambung','Halaman ini belum dilayani server yang bisa menjalankan kode. Deploy ke Vercel supaya intervals.icu bisa ditarik dengan aman.'],
@@ -447,7 +418,7 @@
       offline:['Sedang offline','Angka terakhir muncul lagi begitu ada internet.'],
       error:['Gagal menarik data','intervals.icu menolak permintaan. Cek API key di Vercel.']
     }[reason] || ['Belum ada data','Belum ada yang bisa ditampilkan.'];
-    if (short) return `<div class="connect"><p>${msg[0]} — lihat kartu Body fit.</p></div>`;
+    if (short) return `<div class="connect"><p>${msg[0]}. Lihat kartu Training Status.</p></div>`;
     return `<div class="connect"><div class="st">${msg[0]}</div><p>${msg[1]}</p></div>`;
   }
 
@@ -455,6 +426,134 @@
     if (!wellness || !wellness.ok) return null;
     return wellness.data.filter(d => d.ctl != null && d.date <= sel);
   }
+  function deltaText(v, dp) {
+    if (v == null) return 'belum cukup data';
+    const n = +v.toFixed(dp == null ? 1 : dp);
+    if (n === 0) return 'tidak berubah';
+    return `${n > 0 ? '+' : ''}${n}`;
+  }
+
+  function runWindowStats(fromDaysAgo, toDaysAgo) {
+    if (!activities || !activities.ok) return null;
+    const base = UI.parse(sel).getTime();
+    const day = 86400000;
+    const lo = keyOf(new Date(base - fromDaysAgo * day));
+    const hi = keyOf(new Date(base - toDaysAgo * day));
+    const runs = activities.data.filter(a => RUNTYPE(a.type) && a.date >= lo && a.date <= hi);
+    const km = runs.reduce((s,a) => s + (a.km || 0), 0);
+    const load = runs.reduce((s,a) => s + (a.load || 0), 0);
+    return { runs:runs.length, km, load, loadPerKm:km > 0 && load > 0 ? load/km : null };
+  }
+
+  function recoveryTrend() {
+    const rec = mergedRecovery().filter(x => x.key <= sel);
+    if (!rec.length) return { state:'unknown' };
+    const cutoff = keyOf(new Date(UI.parse(sel).getTime() - 6*86400000));
+    const recent = rec.filter(x => x.key >= cutoff);
+    const before = rec.filter(x => x.key < cutoff).slice(-21);
+
+    const metric = f => {
+      const a = recent.map(x=>x[f]).filter(v=>v!=null).slice(-4);
+      const b = before.map(x=>x[f]).filter(v=>v!=null);
+      if (a.length < 3 || b.length < 7) return null;
+      return { recent:avg(a), base:median(b) };
+    };
+
+    const h = metric('hrv'), r = metric('rhr');
+    if (!h && !r) return { state:'unknown' };
+    const hPct = h ? ((h.recent / h.base) - 1) * 100 : null;
+    const rDiff = r ? r.recent - r.base : null;
+    const down = (hPct != null && hPct <= -10) + (rDiff != null && rDiff >= 3);
+    if (down >= 2) return { state:'down', hPct, rDiff };
+    if ((hPct != null && hPct <= -12) || (rDiff != null && rDiff >= 4)) return { state:'watch', hPct, rDiff };
+    return { state:'stable', hPct, rDiff };
+  }
+
+  function trainingAnalysis(rows) {
+    const w = rows[rows.length-1];
+    const r7 = rows.length > 7 ? rows[rows.length-8] : null;
+    const r14 = rows.length > 14 ? rows[rows.length-15] : null;
+    const ctl7 = r7 && r7.ctl != null ? +(w.ctl-r7.ctl).toFixed(1) : null;
+    const atl7 = r7 && r7.atl != null ? +(w.atl-r7.atl).toFixed(1) : null;
+    const form7 = r7 && r7.form != null ? +(w.form-r7.form).toFixed(1) : null;
+    const ctl14 = r14 && r14.ctl != null ? +(w.ctl-r14.ctl).toFixed(1) : null;
+    const hari = UI.daysUntil(goals.race_date);
+    const rec = recoveryTrend();
+    const run7 = runWindowStats(6,0);
+    const runPrev = runWindowStats(13,7);
+
+    let state = 'MAINTAINING';
+    let headline = 'Fitness relatif stabil.';
+
+    if (w.form != null && w.form < -30) {
+      state = 'HIGH_LOAD';
+      headline = 'Beban sedang sangat tinggi.';
+    } else if ((rec.state === 'down' || rec.state === 'watch') && atl7 != null && atl7 > 1.5) {
+      state = 'LOAD_NOT_ABSORBING';
+      headline = 'Load naik, recovery mulai tertinggal.';
+    } else if (hari >= 0 && hari <= 14 && atl7 != null && form7 != null && atl7 <= -1.5 && form7 >= 1.5 && (ctl7 == null || ctl7 >= -3)) {
+      state = 'TAPERING';
+      headline = 'Taper bergerak sesuai arah.';
+    } else if (hari >= 0 && hari <= 21 && atl7 != null && atl7 < 0 && (ctl7 == null || ctl7 >= -1.5)) {
+      state = 'ABSORBING';
+      headline = 'Fitness terjaga, Fatigue mulai turun.';
+    } else if (ctl7 != null && ctl7 >= 1.5) {
+      state = 'BUILDING';
+      headline = 'Fitness sedang naik.';
+    } else if (atl7 != null && atl7 <= -2 && form7 != null && form7 >= 2 && (ctl7 == null || ctl7 >= -1.5)) {
+      state = 'ABSORBING';
+      headline = 'Sedang menyerap load beberapa hari terakhir.';
+    } else if (ctl7 != null && ctl7 <= -1.5) {
+      state = 'FITNESS_DOWN';
+      headline = 'Fitness mulai turun.';
+    }
+
+    const evidence = [];
+    if (ctl7 != null) evidence.push(`Fitness ${ctl7 > 0 ? 'naik' : ctl7 < 0 ? 'turun' : 'tetap'} <b>${deltaText(Math.abs(ctl7),1)}</b> dalam 7 hari`.replace('+-','-'));
+    if (atl7 != null) evidence.push(`Fatigue ${atl7 > 0 ? 'naik' : atl7 < 0 ? 'turun' : 'tetap'} <b>${deltaText(Math.abs(atl7),1)}</b>`);
+    if (form7 != null && Math.abs(form7) >= 1) evidence.push(`Form bergerak <b>${form7 > 0 ? '+' : ''}${form7.toFixed(1)}</b>`);
+
+    let evidenceText = evidence.length
+      ? evidence.join(', ').replace(/, ([^,]*)$/, ', dan $1') + '.'
+      : 'Butuh sedikitnya 8 hari data untuk membaca arah Fitness dan Fatigue.';
+
+    // Perbaiki wording delta supaya tidak menghasilkan "naik +1.3".
+    evidenceText = evidenceText
+      .replace(/naik <b>\+/g,'naik <b>')
+      .replace(/turun <b>\+/g,'turun <b>');
+
+    let context = '';
+    if (hari >= 0 && hari <= 7) {
+      context = `${hari === 0 ? 'Hari ini lomba.' : `${hari} hari menuju lomba.`} Fitness baru tidak perlu dikejar lagi. Yang ingin dilihat sekarang adalah Fatigue turun lebih cepat daripada Fitness.`;
+    } else if (hari >= 8 && hari <= 14) {
+      context = `${hari} hari menuju lomba. Ini sudah masuk jendela taper, jadi arah yang dicari adalah Fatigue turun sementara Fitness tetap terjaga.`;
+    } else if (hari >= 15 && hari <= 21) {
+      context = `${hari} hari menuju lomba. Belum perlu mengejar kondisi fresh sekarang. Dalam beberapa hari ke depan, Fatigue mulai turun tanpa Fitness ikut jatuh cepat.`;
+    } else if (rec.state === 'down') {
+      context = `Load boleh terlihat bagus di grafik, tapi recovery beberapa hari terakhir ikut melemah. Jangan tambah beban di luar plan sampai HRV dan resting HR kembali mendekati biasanya.`;
+    } else if (rec.state === 'watch') {
+      context = `Recovery mulai memberi sinyal yang perlu dipantau. Belum perlu mengubah plan dari satu angka, tapi jangan menambah load sendiri.`;
+    } else if (run7 && runPrev && runPrev.km >= 10 && runPrev.load > 0 && run7.km > 0 && run7.load > 0) {
+      const kmPct = ((run7.km/runPrev.km)-1)*100;
+      const loadPct = ((run7.load/runPrev.load)-1)*100;
+      const lpkPct = runPrev.loadPerKm ? ((run7.loadPerKm/runPrev.loadPerKm)-1)*100 : 0;
+      if (Math.abs(lpkPct) >= 12) {
+        context = `Running load 7 hari ${loadPct >= 0 ? 'naik' : 'turun'} ${Math.abs(Math.round(loadPct))} persen, sementara jarak ${kmPct >= 0 ? 'naik' : 'turun'} ${Math.abs(Math.round(kmPct))} persen. Load per km ${lpkPct > 0 ? 'lebih tinggi' : 'lebih rendah'} dari minggu lalu.`;
+      }
+    }
+
+    let watch = 'Fitness ↔ · Fatigue terkendali · Form stabil';
+    if (hari >= 0 && hari <= 7) watch = 'Fitness ↔ atau turun tipis · Fatigue ↓↓ · Form ↑';
+    else if (hari >= 8 && hari <= 14) watch = 'Fitness ↔ · Fatigue ↓ · Form ↑';
+    else if (hari >= 15 && hari <= 21) watch = 'Fitness ↔ · Fatigue mulai ↓ · Form ↑ perlahan';
+    else if (state === 'BUILDING') watch = 'Fitness ↑ · Fatigue terkendali · Recovery stabil';
+    else if (state === 'ABSORBING') watch = 'Fitness ↔ · Fatigue ↓ · Form ↑';
+    else if (state === 'LOAD_NOT_ABSORBING' || state === 'HIGH_LOAD') watch = 'Fatigue jangan naik cepat · Recovery kembali normal';
+    else if (state === 'FITNESS_DOWN') watch = 'Fitness jangan terus turun kecuali memang sedang taper atau recovery';
+
+    return { state, headline, evidenceText, context, watch, ctl7, atl7, form7, ctl14 };
+  }
+
   function renderFit() {
     const el = $('#fit-body'), coach = $('#fit-coach'), rows = fitRows();
     if (!rows || rows.length < 1) {
@@ -485,51 +584,45 @@
       ${box('Form','form', w.form, true, 1, zone && zone.v, zone && zone.name)}
     </div>`;
 
-    /* ---- pembacaan coach: apa artinya angka ini, lalu apa yang harus diubah ---- */
-    const P = [];
+    /* ---- pembacaan coach ----
+       Urutannya sengaja: status keseluruhan dulu, lalu arti angka Form,
+       lalu rasio beban, lalu konteks lomba atau recovery, lalu apa yang
+       harus terlihat minggu depan. Tiap paragraf mengatakan hal berbeda. */
+    const a = trainingAnalysis(rows);
     const hari = UI.daysUntil(goals.race_date);
-    const ctl7 = rows.length > 7 ? +(w.ctl - rows[rows.length-8].ctl).toFixed(1) : null;
     const ratio = (w.ctl && w.atl != null) ? +(w.atl / w.ctl).toFixed(2) : null;
     const z = zone ? zone.name : '';
     const f = w.form;
+    const P = [`<b>${a.headline}</b> ${a.evidenceText}`];
 
     if (z === 'Optimal') {
-      P.push(`Form <b>${f.toFixed(1)}</b> ada di <b>Optimal</b>. Beban tujuh harianmu cukup berat untuk memaksa adaptasi tapi masih bisa kamu serap. Ini kondisi yang kamu cari saat membangun. Tahan pola minggu ini, jangan tambah apa apa.`);
+      P.push(`Form <b>${f.toFixed(1)}</b> ada di <b>Optimal</b>. Beban tujuh harianmu cukup berat untuk memaksa adaptasi tapi masih bisa kamu serap. Ini kondisi yang dicari saat membangun, jadi tahan pola minggu ini.`);
     } else if (z === 'Grey Zone') {
-      /* berapa beban tambahan yang dibutuhkan supaya form turun ke Optimal (-10) */
       const need = Math.max(0, f - (-10));
       const load = Math.round(need * 7);
-      P.push(`Form <b>${f.toFixed(1)}</b> ada di <b>Grey Zone</b>. Beban akut tujuh harimu hampir sama besar dengan kapasitas 42 harimu, jadi tubuh tidak menerima sinyal apa pun untuk berubah. Bukan kondisi berbahaya, tapi juga bukan kondisi yang membangun.`);
-      P.push(`Untuk masuk Optimal, fatigue perlu naik sekitar <b>${need.toFixed(0)} poin</b>, kira kira setara tambahan beban ${load} TSS minggu ini atau satu sesi kualitas ekstra. Kalau yang kamu kejar justru kesiapan lomba, arahnya sebaliknya: potong volume sampai form naik ke atas 5.`);
+      P.push(`Form <b>${f.toFixed(1)}</b> ada di <b>Grey Zone</b>. Beban akut tujuh harimu hampir sama besar dengan kapasitas 42 harimu, jadi tubuh tidak menerima sinyal untuk berubah. Untuk masuk Optimal, fatigue perlu naik sekitar <b>${need.toFixed(0)} poin</b>, kira kira setara tambahan ${load} TSS dalam sepekan. Kalau yang dikejar justru kesiapan lomba, arahnya sebaliknya.`);
     } else if (z === 'Fresh') {
       P.push(`Form <b>+${f.toFixed(1)}</b> berarti <b>Fresh</b>. Kelelahan sudah luruh dan kaki siap dipakai tampil. Bagus kalau lomba dekat. Kalau lomba masih jauh, ini tanda beban tujuh harianmu terlalu ringan dan fitness akan mulai turun dalam dua minggu.`);
     } else if (z === 'High Risk') {
-      P.push(`Form <b>${f.toFixed(1)}</b> masuk <b>High Risk</b>. Beban tujuh harimu jauh melampaui kapasitas 42 harimu. Ambil dua sampai tiga hari mudah sekarang, jangan tunggu ada yang terasa sakit. Cedera di titik ini biasanya datang tanpa peringatan.`);
+      P.push(`Form <b>${f.toFixed(1)}</b> masuk <b>High Risk</b>. Beban tujuh harimu jauh melampaui kapasitas 42 harimu. Ambil dua sampai tiga hari mudah sekarang, jangan tunggu ada yang terasa sakit.`);
     } else if (z === 'Transition') {
-      P.push(`Form <b>+${f.toFixed(1)}</b> masuk <b>Transition</b>. Kamu sudah cukup lama tidak memberi beban berarti dan kebugaran mulai luruh. Bangun lagi lewat volume dulu, naik sekitar 10 persen per minggu, baru sentuh intensitas.`);
+      P.push(`Form <b>+${f.toFixed(1)}</b> masuk <b>Transition</b>. Sudah cukup lama tidak ada beban berarti dan kebugaran mulai luruh. Bangun lagi lewat volume dulu, naik sekitar 10 persen per minggu, baru sentuh intensitas.`);
     }
 
     if (ratio != null) {
       P.push(ratio >= 1.3
-        ? `Rasio beban akut ke kronis <b>${ratio}</b>. Di atas 1,3 risiko cedera naik tajam. Turunkan satu sesi keras minggu ini.`
+        ? `Rasio beban akut ke kronis <b>${ratio}</b>. Di atas 1,3 risiko cedera naik tajam.`
         : ratio <= 0.8
         ? `Rasio beban akut ke kronis <b>${ratio}</b>. Di bawah 0,8 artinya kamu sedang detraining, bukan istirahat.`
         : `Rasio beban akut ke kronis <b>${ratio}</b>, masih di rentang aman 0,8 sampai 1,3.`);
     }
 
-    if (ctl7 != null) {
-      P.push(ctl7 > 1.5
-        ? `Fitness naik <b>${ctl7}</b> dalam tujuh hari. Itu laju agresif. Aman kalau tidurmu cukup, berisiko kalau tidak.`
-        : ctl7 < -1.5
-        ? `Fitness turun <b>${Math.abs(ctl7)}</b> dalam tujuh hari. Kalau ini bukan minggu taper, volumenya terlalu banyak dipotong.`
-        : `Fitness bergerak ${ctl7 >= 0 ? '+' : ''}${ctl7} dalam tujuh hari, praktis datar. Rutin yang diulang persis sama tidak menaikkan apa apa.`);
+    if (a.context) P.push(a.context);
+    else if (hari >= 0 && hari <= 21) {
+      P.push(`${hari} hari ke lomba. Target form di hari lomba ada di rentang +5 sampai +15. Dari ${f.toFixed(1)} sekarang, itu berarti volume mulai dipotong sekitar H minus 10.`);
     }
 
-    if (hari >= 0 && hari <= 21) {
-      P.push(hari <= 7
-        ? `${hari} hari ke lomba. Tugasnya tinggal satu, menaikkan form. Potong volume sekitar 40 persen, sisakan satu sesi pendek berintensitas lomba supaya kaki tidak tumpul.`
-        : `${hari} hari ke lomba. Beban berat masih boleh sampai H minus 7, target form di hari lomba ada di rentang +5 sampai +15. Dari ${f.toFixed(1)} sekarang, itu berarti mulai memotong volume di sekitar H minus 10.`);
-    }
+    P.push(`<b>Tujuh hari ke depan:</b> ${a.watch}.`);
     coach.querySelector('.cb-txt').innerHTML = P.map(x=>`<p>${x}</p>`).join('');
   }
 
@@ -883,7 +976,7 @@
       <button class="askbtn" data-ask="home" type="button">Tidak, di rumah</button></div>`;
   }
   function coachNote() {
-    return `<p class="note-sm">Isi sesi ditentukan coach. Daily-track di bawah tetap dikerjakan — bagian itu yang menggerakkan Shock Absorption dan Landing Control di Stryd.</p>`;
+    return `<p class="note-sm">Isi sesi ditentukan coach. Daily-track di bawah tetap dikerjakan. Bagian itu yang menggerakkan Shock Absorption dan Landing Control di Stryd.</p>`;
   }
   function table(list) {
     const v = logOf(sel), loads = v.loads || {};
@@ -963,7 +1056,203 @@
   const series = (f,n) => logs.slice(-(n||30)).filter(l=>l.value[f]!=null)
                               .map(l=>({v:l.value[f], label:UI.shortDate(l.key).dm}));
 
+  /* ================= TIDUR & PEMULIHAN =================
+     Catatan penting soal tanggal: satu baris log tanggal K berisi tidur
+     MALAM SEBELUMNYA, yaitu tidur yang dimulai malam K-1 dan berakhir pagi K.
+     Sama seperti Zepp. Jadi kartu tanggal 9 menunjukkan tidur 8 malam. */
+
+  const hm2min = t => {
+    if (t == null || t === '') return null;
+    const m = String(t).trim().match(/^(\d{1,2})[:.](\d{1,2})$/);
+    if (m) return (+m[1])*60 + (+m[2]);
+    const n = parseFloat(t);
+    return isNaN(n) ? null : Math.round(n*60);
+  };
+  const min2hm = v => v == null ? '—' : Math.floor(v/60) + ':' + p2(Math.round(v%60));
+
+  /* Keteraturan tidur, hitungan kita sendiri. Zepp tidak membuka rumusnya.
+     Dasarnya sebaran jam mulai tidur dan jam bangun selama tujuh malam:
+     makin kecil sebarannya, makin teratur. */
+  function sleepRegularity(uptoKey) {
+    const rows = logs.filter(l => l.key <= uptoKey).slice(-7).map(l => l.value)
+                     .filter(v => v.bed != null && v.wake != null);
+    if (rows.length < 4) return null;
+    const sd = arr => {
+      const m = avg(arr);
+      return Math.sqrt(avg(arr.map(x => (x-m)*(x-m))));
+    };
+    /* jam tidur dinormalkan ke sumbu yang berpusat di tengah malam supaya
+       23:13 dan 01:03 tidak dianggap berjarak 22 jam */
+    const bed = rows.map(v => { const t = hm2min(v.bed); return t > 720 ? t - 1440 : t; });
+    const wake = rows.map(v => hm2min(v.wake));
+    const spread = (sd(bed) + sd(wake)) / 2;
+    return Math.round(clamp(100 - spread * 0.75, 0, 100));
+  }
+
+  /* Grafik tidur. Kalau ada segmen tahapan per menit (nanti dari Health Auto
+     Export) digambar seperti hipnogram Zepp. Kalau yang ada cuma totalnya,
+     digambar sebagai batang komposisi — jujur, bukan zigzag karangan. */
+  function drawSleep() {
+    const el = $('#sleep-hypno'); if (!el) return;
+    const v = logOf(sel);
+    const rec = mergedRecovery().find(r => r.key === sel) || {};
+    const total = v.sleep != null ? v.sleep : rec.sleep;
+    const bed = hm2min(v.bed), wake = hm2min(v.wake);
+    const deep = hm2min(v.deep), rem = hm2min(v.rem), awake = hm2min(v.awake);
+    const nap = hm2min(v.nap);
+
+    if (total == null && bed == null) {
+      el.innerHTML = `<p class="empty-note">Belum ada data tidur untuk malam ini. Isi manual dari Zepp, atau tunggu sinkron dari intervals.icu.</p>`;
+      return;
+    }
+
+    const tot = total != null ? Math.round(total*60) : (bed!=null&&wake!=null ? ((wake - bed + 1440) % 1440) : null);
+    const light = (tot != null && deep != null && rem != null)
+      ? Math.max(0, tot - deep - rem - (awake||0)) : null;
+
+    const hyp = !!(v.stages && v.stages.length);
+    const W = 320, H = hyp ? 54 : 30;
+    let bar = '';
+    if (v.stages && v.stages.length) {
+      /* hipnogram sungguhan: [{s:menitDariMulai, e:menit, k:'deep|light|rem|awake'}] */
+      const span = v.stages[v.stages.length-1].e || 1;
+      const lane = { awake:0, rem:1, light:2, deep:3 };
+      v.stages.forEach(g => {
+        const x1 = (g.s/span)*W, x2 = (g.e/span)*W;
+        const y = 3 + lane[g.k]*12;
+        bar += `<rect class="sg sg-${g.k}" x="${x1.toFixed(1)}" y="${y}" width="${Math.max(1.5,x2-x1).toFixed(1)}" height="10" rx="2.5"/>`;
+      });
+    } else if (light != null) {
+      const seg = [['deep',deep],['rem',rem],['light',light],['awake',awake||0]].filter(s=>s[1]>0);
+      const sum = seg.reduce((a,b)=>a+b[1],0) || 1;
+      let x = 0;
+      seg.forEach(([k,m]) => {
+        const w = (m/sum)*W;
+        bar += `<rect class="sg sg-${k}" x="${x.toFixed(1)}" y="0" width="${w.toFixed(1)}" height="30" rx="4"/>`;
+        x += w;
+      });
+    } else {
+      bar = `<rect class="sg sg-light" x="0" y="0" width="${W}" height="30" rx="4"/>`;
+    }
+
+    const dPrev = new Date(UI.parse(sel).getTime() - 86400000);
+    const kiri = bed != null ? `<span>[${UI.shortDate(keyOf(dPrev)).dow}] ${min2hm(bed)}</span>` : '<span>&nbsp;</span>';
+    const kanan = wake != null ? `<span>${min2hm(wake)}</span>` : '<span>&nbsp;</span>';
+
+    el.innerHTML = `
+      <div class="sleep-top"><b>${tot!=null?min2hm(tot):'—'}</b><span>${v.stages&&v.stages.length?'hipnogram':'komposisi tahapan'}</span></div>
+      <svg class="hyp${hyp?'':' comp'}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bar}</svg>
+      <div class="sleep-ends">${kiri}${kanan}</div>
+      <div class="slegend">
+        <span class="lg lg-deep">Deep</span><span class="lg lg-rem">REM</span>
+        <span class="lg lg-light">Light</span><span class="lg lg-awake">Terjaga</span>
+      </div>
+      ${nap ? `<div class="napline"><b>Tidur siang</b><span>${min2hm(nap)}</span></div>` : ''}`;
+  }
+
+  /* Enam angka yang dipakai membaca pemulihan. HRV dan resting HR ikut di sini
+     karena keduanya baru berarti kalau dibaca bersama tahapan tidur. */
+  function renderSleepMetrics() {
+    const el = $('#sleep-metrics'); if (!el) return;
+    const v = logOf(sel);
+    const rec = mergedRecovery().find(r => r.key === sel) || {};
+    const tot = v.sleep != null ? v.sleep : rec.sleep;
+    const totM = tot != null ? Math.round(tot*60) : null;
+    const deep = hm2min(v.deep), rem = hm2min(v.rem), awake = hm2min(v.awake);
+    const reg = sleepRegularity(sel);
+    const hrv = rec.hrv, rhr = rec.rhr;
+    const kind = wellnessMap()[sel] && wellnessMap()[sel].hrv_kind;
+
+    const pct = m => (m != null && totM) ? ` <i>${Math.round(m/totM*100)}%</i>` : '';
+    const grade = (val, good, fair) => val == null ? '' :
+      val >= good ? '<span class="gd ok">baik</span>' :
+      val >= fair ? '<span class="gd mid">cukup</span>' : '<span class="gd low">kurang</span>';
+
+    const tgt = goals.sleep_target_h || 7;
+    const row = (k, val, sub, gr) => `<div class="sm">
+        <div class="k">${k}</div><div class="v">${val}${sub||''}</div>${gr||''}</div>`;
+
+    el.innerHTML =
+      row('Durasi', totM!=null?min2hm(totM):'—', totM!=null?` <i>target ${tgt}:00</i>`:'',
+          totM!=null?grade(totM/60, tgt-0.5, tgt-1.5):'') +
+      row('Keteraturan', reg!=null?reg+'%':'—', reg==null?' <i>butuh 4 malam</i>':'',
+          reg!=null?grade(reg, 75, 55):'') +
+      row('Deep', deep!=null?min2hm(deep):'—', pct(deep),
+          deep!=null&&totM?grade(deep/totM*100, 15, 12):'') +
+      row('REM', rem!=null?min2hm(rem):'—', pct(rem),
+          rem!=null&&totM?grade(rem/totM*100, 20, 15):'') +
+      row('Terjaga', awake!=null?min2hm(awake):'—', pct(awake),
+          awake!=null&&totM?grade(100-awake/totM*100, 95, 90):'') +
+      row('HRV', hrv!=null?hrv:'—', hrv!=null?` <i>ms${kind?' · '+kind:''}</i>`:'') +
+      row('Resting HR', rhr!=null?rhr:'—', rhr!=null?' <i>bpm</i>':'');
+  }
+
+  /* Narasi pemulihan. Bukan mengulang angka di atasnya, tapi membacanya:
+     mana yang menahan, mana yang sudah beres, dan artinya untuk latihan. */
+  function recoveryNarrative() {
+    const box = $('#rec-coach'); if (!box) return;
+    const v = logOf(sel);
+    const rec = mergedRecovery().find(r => r.key === sel) || {};
+    const tot = v.sleep != null ? v.sleep : rec.sleep;
+    const totM = tot != null ? Math.round(tot*60) : null;
+    const deep = hm2min(v.deep), rem = hm2min(v.rem), awake = hm2min(v.awake);
+    const reg = sleepRegularity(sel);
+    const tgt = goals.sleep_target_h || 7;
+    const all = mergedRecovery().filter(r => r.key <= sel).slice(-14);
+    const sl14 = all.map(r=>r.sleep).filter(x=>x!=null);
+    const P = [];
+
+    if (totM == null) {
+      box.querySelector('.cb-txt').innerHTML = `<p>Belum ada data tidur untuk malam ini, jadi belum ada yang bisa dibaca. Isi durasi tidur saja dulu, itu satu angka yang paling menentukan.</p>`;
+      box.hidden = false; return;
+    }
+
+    /* 1. yang paling menentukan hari ini */
+    const kurang = tgt - totM/60;
+    if (kurang > 1) {
+      P.push(`Tidur <b>${min2hm(totM)}</b>, kurang ${kurang.toFixed(1)} jam dari target ${tgt}. Kekurangan sebesar ini menurunkan kualitas sesi keras, bukan sesi easy. Kalau hari ini ada interval, itu yang pertama dikorbankan.`);
+    } else if (kurang > 0.3) {
+      P.push(`Tidur <b>${min2hm(totM)}</b>, sedikit di bawah target ${tgt}. Belum cukup untuk mengubah rencana latihan, tapi jangan diulang tiga malam berturut turut.`);
+    } else {
+      P.push(`Tidur <b>${min2hm(totM)}</b>, sudah memenuhi target. Ini modal yang cukup untuk sesi keras.`);
+    }
+
+    /* 2. tahapan, hanya kalau ada datanya */
+    if (deep != null && rem != null && totM) {
+      const pd = deep/totM*100, pr = rem/totM*100;
+      const T = [];
+      if (pd < 12) T.push(`Deep cuma ${pd.toFixed(0)} persen. Deep adalah bagian yang memperbaiki otot dan jaringan, jadi ini yang paling terasa kalau kamu bangun dengan kaki masih berat.`);
+      else T.push(`Deep ${pd.toFixed(0)} persen, di rentang normal. Bagian pemulihan fisiknya sudah dapat.`);
+      if (pr > 25) T.push(`REM ${pr.toFixed(0)} persen, di atas kebiasaan. Sesekali wajar. Kalau berulang, biasanya tanda utang tidur dari malam malam sebelumnya atau stres harian yang naik.`);
+      else if (pr < 15) T.push(`REM ${pr.toFixed(0)} persen, tipis. REM yang kurang lebih terasa di fokus dan mood daripada di kaki.`);
+      P.push(T.join(' '));
+    }
+
+    /* 3. keteraturan, penyebab yang paling sering dilupakan */
+    if (reg != null) {
+      P.push(reg >= 75
+        ? `Keteraturan ${reg} persen. Jam tidurmu konsisten, dan itu yang membuat skor pemulihan bisa dipercaya.`
+        : `Keteraturan ${reg} persen. Jam mulai tidurmu berpindah pindah lebih dari satu jam antar malam. Untuk badan, jam tidur yang berubah ubah efeknya mirip jet lag ringan tiap hari, dan itu menahan deep sleep lebih dulu daripada durasinya. Kalau cuma satu hal yang mau kamu perbaiki minggu ini, pilih ini: kunci jam mulai tidur, bukan jam bangun.`);
+    }
+
+    /* 4. arah dua minggu */
+    if (sl14.length >= 5) {
+      const a = avg(sl14);
+      P.push(`Rata rata 14 malam terakhir ${a.toFixed(1)} jam. ${a < tgt - 0.5
+        ? `Ini defisit yang menumpuk, dan tidak bisa ditutup oleh satu malam panjang di akhir pekan.`
+        : `Sudah di sekitar target, jadi masalahnya bukan di jumlah.`}`);
+    }
+
+    if (awake != null && totM && awake/totM > 0.06) {
+      P.push(`Terjaga ${min2hm(awake)} sepanjang malam. Itu cukup banyak untuk memotong siklus deep. Biasanya penyebabnya suhu kamar, cahaya, atau makan terlalu dekat jam tidur.`);
+    }
+
+    box.querySelector('.cb-txt').innerHTML = P.map(x=>`<p>${x}</p>`).join('');
+    box.hidden = false;
+  }
+
   function renderBody() {
+    drawSleep(); renderSleepMetrics(); recoveryNarrative();
     const wm = wellnessMap();
     const autoCount = Object.values(wm).filter(d=>d.rhr!=null||d.sleep_h!=null||d.hrv!=null).length;
     const rn = $('#rec-note');
@@ -974,11 +1263,13 @@
     const rec = mergedRecovery();
     const rser = f => rec.slice(-30).filter(r=>r[f]!=null).map(r=>({v:r[f], label:UI.shortDate(r.key).dm}));
     const r7 = f => rec.slice(-7).map(r=>r[f]).filter(v=>v!=null);
-    const s7 = avg(r7('sleep')), rd = readiness(today);
+    const s7 = avg(r7('sleep'));
+    const d7 = avg(logs.slice(-7).map(l=>hm2min(l.value.deep)).filter(x=>x!=null));
+    const g7 = sleepRegularity(sel);
     $('#rec-stats').innerHTML =
-      statTile('Tidur 7 hari', s7==null?'belum':s7.toFixed(1), s7==null?'':' j', s7==null) +
-      statTile('HRV', rd.hrv==null?'belum':rd.hrv, rd.hrv==null?'':' ms', rd.hrv==null) +
-      statTile('Resting HR', rd.rhr==null?'belum':rd.rhr, rd.rhr==null?'':' bpm', rd.rhr==null);
+      statTile('Tidur 7 malam', s7==null?'belum':s7.toFixed(1), s7==null?'':' j', s7==null) +
+      statTile('Deep 7 malam', d7==null?'belum':min2hm(Math.round(d7)), '', d7==null) +
+      statTile('Keteraturan', g7==null?'belum':g7, g7==null?'':' %', g7==null);
     UI.lineChart($('#chart-sleep'), rser('sleep'), { dp:1, target:goals.sleep_target_h });
     UI.lineChart($('#chart-hrv'), rser('hrv'), { dp:0, empty:'Belum ada HRV. Cek di intervals.icu apakah jam-mu benar-benar mengirim HRV.' });
     UI.lineChart($('#chart-rhr'), rser('rhr'), { dp:0 });
@@ -1210,6 +1501,7 @@
 
   /* ================= SHEET CATAT ================= */
   const F = { weight:'f-weight', bf:'f-bf', sleep:'f-sleep', hrv:'f-hrv', rhr:'f-rhr',
+              bed:'f-bed', wake:'f-wake', deep:'f-deep', rem:'f-rem', awake:'f-awake', nap:'f-nap',
               cal:'f-cal', protein:'f-protein', dist:'f-dist', notes:'f-notes' };
   function fillSheet() {
     const v = logOf(sel);
@@ -1223,7 +1515,9 @@
   }
   function readSheet() {
     const v = Object.assign({}, logOf(sel));
-    for (const k in F) { const el=document.getElementById(F[k]); v[k] = (k==='notes')?(el.value.trim()||null):num(el.value); }
+    const TXT = { notes:1, bed:1, wake:1, deep:1, rem:1, awake:1, nap:1 };
+    for (const k in F) { const el=document.getElementById(F[k]); if(!el) continue;
+      v[k] = TXT[k] ? (el.value.trim()||null) : num(el.value); }
     const on=id=>$(id).getAttribute('aria-pressed')==='true';
     v.st=on('#t-st'); v.run=on('#t-run'); v.vit_am=on('#t-vam'); v.vit_pm=on('#t-vpm');
     v.daily={abs:on('#t-abs'),calf:on('#t-calf'),hip:on('#t-hip')};

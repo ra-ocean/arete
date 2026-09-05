@@ -20,10 +20,10 @@ window.Insight = (function () {
     const sleep = t.sleep != null ? t.sleep : (lastN(logs, 1, 'sleep')[0] ?? null);
     if (sleep != null && sleep < 6 && plan.day.kind === 'run' && (plan.day.title || '').includes('kualitas')) {
       out.push({ level: 'warn', text:
-        `Tidur ${sleep} jam semalam dan hari ini jadwal lari kualitas. Pertimbangkan turunkan intensitas atau geser sesinya — sesi keras dengan tidur kurang menambah beban tanpa menambah adaptasi.` });
+        `Tidur ${sleep} jam semalam dan hari ini jadwal lari kualitas. Pertimbangkan turunkan intensitas atau geser sesinya. Sesi keras dengan tidur kurang menambah beban tanpa menambah adaptasi.` });
     } else if (sleep != null && sleep < 6) {
       out.push({ level: 'warn', text:
-        `Tidur ${sleep} jam semalam. Di bawah 6 jam, pemulihan otot dan tendon melambat — kalau hari ini berat, turunkan satu tingkat.` });
+        `Tidur ${sleep} jam semalam. Di bawah 6 jam, pemulihan otot dan tendon melambat. Kalau hari ini berat, turunkan satu tingkat.` });
     } else if (sleep != null && sleep < (goals.sleep_target_h || 7) - 0.5) {
       out.push({ level: 'info', text:
         `Tidur ${sleep} jam, target ${goals.sleep_target_h || 7} jam. Belum mengkhawatirkan, tapi kalau berlanjut beberapa hari efeknya menumpuk di pemulihan.` });
@@ -34,10 +34,10 @@ window.Insight = (function () {
       const w = wellness[wellness.length - 1];
       if (w.form != null && w.form < -20) {
         out.push({ level: 'warn', text:
-          `Form kamu ${w.form} (CTL ${Math.round(w.ctl)}, ATL ${Math.round(w.atl)}). Di bawah −20 artinya beban akut jauh di atas kapasitas — ini zona rawan cedera, bukan zona adaptasi.` });
+          `Form kamu ${w.form} (CTL ${Math.round(w.ctl)}, ATL ${Math.round(w.atl)}). Di bawah -20 artinya beban akut jauh di atas kapasitas. Ini zona rawan cedera, bukan zona adaptasi.` });
       } else if (w.form != null && w.form > 5 && days != null && days <= 7 && days >= 0) {
         out.push({ level: 'good', text:
-          `Form ${w.form} menjelang lomba. Taper-nya jalan — kamu masuk race dalam kondisi segar.` });
+          `Form ${w.form} menjelang lomba. Taper-nya jalan. Kamu masuk race dalam kondisi segar.` });
       }
     }
 
@@ -47,13 +47,13 @@ window.Insight = (function () {
       const m = avg(prot), target = goals.protein_target_g;
       if (m < target * 0.85) {
         out.push({ level: 'warn', text:
-          `Protein ${prot.length} hari terakhir rata-rata ${Math.round(m)} g dari target ${target} g — kurang ${Math.round(target - m)} g per hari. Ini pengungkit terbesar buat mempertahankan otot sambil defisit.` });
+          `Protein ${prot.length} hari terakhir rata-rata ${Math.round(m)} g dari target ${target} g. Kurang ${Math.round(target - m)} g per hari. Ini pengungkit terbesar buat mempertahankan otot sambil defisit.` });
       } else if (m >= target) {
         out.push({ level: 'good', text:
           `Protein rata-rata ${Math.round(m)} g, di atas target ${target} g. Pertahankan.` });
       } else {
         out.push({ level: 'info', text:
-          `Protein rata-rata ${Math.round(m)} g, kurang ${Math.round(target - m)} g dari target ${target} g. Sudah dekat — satu porsi telur atau whey menutup sisanya.` });
+          `Protein rata-rata ${Math.round(m)} g, kurang ${Math.round(target - m)} g dari target ${target} g. Sudah dekat. Satu porsi telur atau whey menutup sisanya.` });
       }
     }
 
@@ -70,7 +70,7 @@ window.Insight = (function () {
           `Berat praktis datar (${dw >= 0 ? '+' : ''}${dw.toFixed(1)} kg dalam 2 minggu) padahal asupan tercatat ${Math.round(mCal)} kkal, di bawah estimasi TDEE ${goals.tdee_low}. Penyebab paling umum bukan metabolisme melambat, tapi ada kalori yang tidak tercatat. Coba timbang porsi 3 hari untuk mengecek.` });
       } else if (dw <= -0.4) {
         out.push({ level: 'good', text:
-          `Berat turun ${Math.abs(dw).toFixed(1)} kg dalam 2 minggu — laju yang pas untuk menjaga otot.` });
+          `Berat turun ${Math.abs(dw).toFixed(1)} kg dalam 2 minggu. Laju yang pas untuk menjaga otot.` });
       }
     }
 
@@ -79,7 +79,7 @@ window.Insight = (function () {
     const undone = ['abs', 'calf', 'hip'].filter(k => !dd[k]);
     if (hour >= 15 && undone.length === 3) {
       out.push({ level: 'info', text:
-        `Daily-track hari ini belum dicentang. Abs, calf, dan hip totalnya 15–20 menit — bagian ini yang menggerakkan Shock Absorption dan Landing Control di Stryd.` });
+        `Daily-track hari ini belum dicentang. Abs, calf, dan hip totalnya 15 sampai 20 menit. Bagian ini yang menggerakkan Shock Absorption dan Landing Control di Stryd.` });
     } else if (undone.length === 0 && (t.daily_at || hour >= 6)) {
       out.push({ level: 'good', text: 'Daily-track hari ini selesai semua.' });
     }
@@ -95,13 +95,13 @@ window.Insight = (function () {
     if (logs.length) {
       const gap = Math.round((new Date(dateKey + 'T00:00:00') - new Date(logs[logs.length - 1].key + 'T00:00:00')) / 86400000);
       if (gap >= 3) out.push({ level: 'info', text:
-        `Sudah ${gap} hari tidak ada catatan. Tidak apa-apa — isi hari ini saja, tidak perlu mengejar yang bolong.` });
+        `Sudah ${gap} hari tidak ada catatan. Tidak apa-apa. Isi hari ini saja, tidak perlu mengejar yang bolong.` });
     }
 
     /* --- foto mingguan --- */
     if (ctx.lastPhotoDays != null && ctx.lastPhotoDays >= 7) {
       out.push({ level: 'info', text:
-        `Foto progress terakhir ${ctx.lastPhotoDays} hari lalu. Ambil yang baru — perubahan komposisi tubuh lebih jujur terlihat di foto daripada di timbangan.` });
+        `Foto progress terakhir ${ctx.lastPhotoDays} hari lalu. Ambil yang baru. Perubahan komposisi tubuh lebih jujur terlihat di foto daripada di timbangan.` });
     }
 
     /* Kartu insight tidak boleh pernah kosong — kartu kosong mengajarkan mata
