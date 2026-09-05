@@ -142,8 +142,9 @@
         <span class="n">${t.days}</span>
         <span class="t"><b>${t.days === 0 ? 'Hari ini — ' : 'hari ke '}${t.name}</b>
         <span>${UI.fmt(t.date, true)}</span></span>
-        <span class="k">${t.kind === 'race' ? 'Lomba' : 'Target'}</span>
+        <span class="k">${(t.tag || (t.kind === 'race' ? 'Lomba' : 'Target')).slice(0,14)}</span>
       </div>`).join('');
+    $('#target-count').textContent = list.length > 1 ? `· ${list.length}` : '';
     const dots = list.length > 1
       ? `<div class="tdots">${list.map((_,i)=>`<i class="${i?'':'on'}"></i>`).join('')}</div>` : '';
     box.querySelector('.tdots')?.remove();
@@ -156,6 +157,58 @@
   }
 
   /* ================= HERO KESIAPAN ================= */
+  /* Narasi kesiapan. Angka telanjang tidak menolong siapa pun — yang berguna
+     adalah: dari mana angkanya, apa yang belum ikut dihitung, dan hari ini
+     harus bagaimana. Semua kalimat di bawah lahir dari data, bukan template. */
+  function readinessNarrative(r) {
+    const tgt = goals.sleep_target_h || 7;
+    const P = [];
+
+    if (r.score == null) {
+      P.push(`Belum ada satu pun angka pemulihan untuk hari ini, jadi skornya tidak bisa dihitung. Yang dibutuhkan cuma tiga: <b>jam tidur</b>, <b>HRV</b>, dan <b>resting HR</b>.`);
+      P.push(`Bisa diketik manual lewat Catat → Badan, atau dibiarkan masuk sendiri kalau jam-mu sudah tersambung ke intervals.icu.`);
+      return P;
+    }
+
+    /* dari mana angkanya */
+    const bits = [];
+    if (r.sleep != null) {
+      const kurang = Math.max(0, tgt - r.sleep);
+      bits.push(kurang > 0
+        ? `tidur <b>${r.sleep} jam</b>, kurang ${kurang.toFixed(1)} jam dari target ${tgt}`
+        : `tidur <b>${r.sleep} jam</b>, sudah memenuhi target ${tgt}`);
+    }
+    const rec = mergedRecovery().filter(x=>x.key<=sel).slice(-30);
+    const bH = median(rec.map(x=>x.hrv).filter(v=>v!=null));
+    const bR = median(rec.map(x=>x.rhr).filter(v=>v!=null));
+    const usedHrv = r.hrv!=null && !r.need.some(n=>n.startsWith('HRV'));
+    const usedRhr = r.rhr!=null && !r.need.some(n=>n.startsWith('resting'));
+    if (usedHrv) bits.push(`HRV <b>${r.hrv} ms</b> ${r.hrv>=bH?'di atas':'di bawah'} kebiasaanmu (${Math.round(bH)})`);
+    if (usedRhr) bits.push(`resting HR <b>${r.rhr} bpm</b> ${r.rhr<=bR?'di bawah':'di atas'} kebiasaanmu (${Math.round(bR)})`);
+
+    P.push(`Skor <b>${r.score}</b> dihitung dari ${bits.join(', ')}.`);
+    if (r.need.length) {
+      P.push(`Belum ikut dihitung: ${r.need.join(' dan ')}. HRV dan resting HR baru dipakai setelah ada 5 hari tercatat — sebelum itu tidak ada pembanding, dan skornya cuma akan terlihat bagus tanpa alasan.`);
+    }
+
+    /* hari ini harus bagaimana — dikaitkan ke rencana hari itu */
+    const w = PLAN.week[UI.dow(sel)];
+    const jenis = w.kind === 'run' ? 'lari' : w.kind === 'st' ? 'strength' : 'fleksibel';
+    if (r.score >= 80) {
+      P.push(`Badan pulih penuh. Sesi <b>${jenis}</b> hari ini boleh dijalankan sesuai rencana, termasuk bagian yang berat.`);
+    } else if (r.score >= 65) {
+      P.push(`Kondisi wajar. Jalankan sesi <b>${jenis}</b> seperti rencana, tapi jangan menambah dosis di luar yang sudah ditulis.`);
+    } else if (r.score >= 50) {
+      P.push(`Pemulihan belum penuh. Saran saya: <b>volume tetap, intensitas turun satu tingkat</b>. Kalau hari ini interval, ganti easy. Kalau ST, kurangi beban 10–15% dan jangan cari rekor. Daily-track tetap jalan — bebannya ringan dan justru membantu sirkulasi.`);
+    } else {
+      P.push(`Sinyal pemulihan rendah. Hari ini <b>jangan dipaksa</b>: ganti dengan easy run, jalan kaki, atau mobility saja. Memaksa sesi keras dengan kondisi begini menambah kelelahan tanpa menambah kebugaran — dan itu justru yang menjauhkan dari target lomba.`);
+    }
+    if (r.sleep != null && r.sleep < 5.5) {
+      P.push(`Tidur di bawah 5,5 jam. Kalau ini berlanjut beberapa hari, efeknya menumpuk dan tidak bisa ditutup oleh latihan sebaik apa pun.`);
+    }
+    return P;
+  }
+
   function renderHero() {
     const r = readiness(sel);
     const C = 2*Math.PI*38;
@@ -168,32 +221,26 @@
 
     const lab = r.score==null ? 'Kesiapan belum terbaca'
       : r.score>=80 ? 'Siap' : r.score>=65 ? 'Cukup siap' : r.score>=50 ? 'Hati-hati' : 'Pulihkan dulu';
-    const say = r.score==null
-      ? 'Isi tidur, HRV, dan resting HR — atau sambungkan jam ke intervals.icu supaya terisi sendiri.'
-      : r.score>=80 ? 'Badan pulih. Sesi berat aman dijalankan penuh.'
-      : r.score>=65 ? 'Kondisi wajar. Jalankan rencana, jangan menambah dosis.'
-      : r.score>=50 ? 'Pemulihan belum penuh. Turunkan intensitas satu tingkat, volume boleh tetap.'
-      : 'Sinyal pemulihan rendah. Ganti dengan easy atau mobility.';
     $('#ready-lab').textContent = lab;
-    $('#ready-say').textContent = say;
+    $('#ready-onel').textContent = r.score==null ? 'Butuh tidur, HRV, dan resting HR.'
+      : `Dihitung dari ${3 - r.need.length} dari 3 sinyal pemulihan.`;
+    $('#ready-say').querySelector('.cb-txt').innerHTML =
+      readinessNarrative(r).map(p=>`<p>${p}</p>`).join('');
 
-    /* bar tidur 7 hari terakhir sampai hari yang dilihat */
     const rec = mergedRecovery().filter(x=>x.key<=sel).slice(-7);
-    const bars = $('#sleepbars');
-    const tgt = goals.sleep_target_h || 7;
+    const bars = $('#sleepbars'), tgt = goals.sleep_target_h || 7;
     if (rec.filter(x=>x.sleep!=null).length < 2) bars.className = 'sleepbars empty';
     else {
       bars.className = 'sleepbars';
       const mx = Math.max(tgt, ...rec.map(x=>x.sleep||0));
       bars.innerHTML = rec.map(x => {
-        const h = x.sleep ? Math.max(6, (x.sleep/mx)*44) : 3;
+        const h = x.sleep ? Math.max(6,(x.sleep/mx)*44) : 3;
         const cls = x.key===sel ? 'today' : (x.sleep>=tgt-0.5 ? 'ok' : '');
         return `<div class="${cls}" style="height:${h.toFixed(0)}px" data-d="${UI.shortDate(x.key).dow[0]}" title="${x.key}: ${x.sleep ?? '—'} j"></div>`;
       }).join('');
     }
-
-    const mini = (k,v,u) => `<div><div class="k">${k}</div><div class="v${v==null?' none':''}">${v==null?'belum':v}${v!=null&&u?`<i>${u}</i>`:''}</div></div>`;
-    $('#ready-mini').innerHTML = mini('Tidur', r.sleep, 'j') + mini('HRV', r.hrv, 'ms') + mini('Resting HR', r.rhr, 'bpm');
+    const mini=(k,v,u)=>`<div><div class="k">${k}</div><div class="v${v==null?' none':''}">${v==null?'belum':v}${v!=null&&u?`<i>${u}</i>`:''}</div></div>`;
+    $('#ready-mini').innerHTML = mini('Tidur',r.sleep,'j')+mini('HRV',r.hrv,'ms')+mini('Resting HR',r.rhr,'bpm');
   }
 
   /* ================= BODY FIT ================= */
@@ -213,20 +260,53 @@
     return wellness.data.filter(d => d.ctl != null && d.date <= sel);
   }
   function renderFit() {
-    const el = $('#fit-body'), rows = fitRows();
-    if (!rows) { el.innerHTML = connectBlock(wellness && wellness.reason); $('#c-fit').disabled = true; return; }
-    if (!rows.length) { el.innerHTML = `<p class="empty-note">Belum ada data fitness di intervals.icu.</p>`; $('#c-fit').disabled = true; return; }
-    $('#c-fit').disabled = false;
-    const w = rows[rows.length-1], form = w.form;
-    const state = form==null ? '' : form>5 ? 'Segar' : form>-10 ? 'Seimbang' : form>-20 ? 'Terbebani' : 'Kelelahan';
-    const last = rows.slice(-30);
-    el.innerHTML = `<div class="fit3">
-        <div><div class="k">Fitness</div><div class="v">${Math.round(w.ctl)}</div><div class="s">CTL</div></div>
-        <div><div class="k">Fatigue</div><div class="v">${Math.round(w.atl)}</div><div class="s">ATL</div></div>
-        <div><div class="k">Form</div><div class="v" style="color:${form>-10?'var(--good)':form>-20?'var(--mid)':'var(--low)'}">${form>0?'+':''}${form}</div><div class="s">${state}</div></div>
-      </div>` + sparkline(last)
-      + `<div class="legend"><span><i></i>Fitness</span><span class="b"><i></i>Fatigue</span></div>`;
+    const el = $('#fit-body'), coach = $('#fit-coach'), rows = fitRows();
+    if (!rows || rows.length < 1) {
+      el.innerHTML = rows ? `<p class="empty-note">Belum ada data fitness di intervals.icu.</p>` : connectBlock(wellness && wellness.reason);
+      coach.hidden = true; $('#c-fit').hidden = true; return;
+    }
+    coach.hidden = false; $('#c-fit').hidden = false;
+    const w = rows[rows.length-1], prev = rows[rows.length-2] || null;
+
+    /* Arah panah selalu menunjukkan perubahan; warnanya menunjukkan BAIK atau
+       TIDAK. Untuk Fitness naik itu baik, tapi untuk Fatigue naik justru beban
+       bertambah — mewarnainya hijau akan menyesatkan. */
+    const box = (k, key, val, goodUp, dp) => {
+      const rp = v => v==null ? null : +v.toFixed(dp);
+      const p = prev ? rp(prev[key]) : null, cur = rp(val);
+      const d = (p!=null && cur!=null) ? +(cur-p).toFixed(dp) : null;
+      const dir = d==null || d===0 ? 'flat' : (d>0 ? 'up' : 'down');
+      const good = dir==='flat' ? 'flat' : ((dir==='up')===goodUp ? 'up' : 'down');
+      const ar = dir==='flat' ? '—' : dir==='up' ? '▲' : '▼';
+      return `<div class="fb"><div class="k">${k}</div>
+        <div class="v">${val==null?'—':(val>0&&key==='form'?'+':'')+val.toFixed(dp)}</div>
+        <div class="d ${good}"><span class="ar">${ar}</span>${d==null?'—':d===0?'sama':(d>0?'+':'')+d.toFixed(dp)}</div>
+        <div class="p">kemarin ${p==null?'—':p.toFixed(dp)}</div></div>`;
+    };
+    el.innerHTML = `<div class="fitbox">
+      ${box('Fitness','ctl', w.ctl, true, 0)}
+      ${box('Fatigue','atl', w.atl, false, 0)}
+      ${box('Form','form', w.form, true, 1)}
+    </div>`;
+
+    /* penilaian AI coach */
+    const P = [];
+    const dCtl = prev ? w.ctl-prev.ctl : null, dAtl = prev ? w.atl-prev.atl : null;
+    const arahCtl = dCtl==null ? '' : dCtl>0.3 ? 'naik' : dCtl<-0.3 ? 'turun' : 'datar';
+    const arahAtl = dAtl==null ? '' : dAtl>0.5 ? 'naik' : dAtl<-0.5 ? 'turun' : 'datar';
+    P.push(`Fitness <b>${Math.round(w.ctl)}</b>${arahCtl?` ${arahCtl}`:''}, fatigue <b>${Math.round(w.atl)}</b>${arahAtl?` ${arahAtl}`:''}. Fitness itu rata-rata beban latihanmu 42 hari terakhir — naiknya memang lambat, dan itu normal. Fatigue rata-rata 7 hari terakhir, jadi dia bereaksi cepat.`);
+    const f = w.form;
+    if (f > 5) P.push(`Form <b>+${f}</b> berarti kamu <b>segar</b> — beban akut sudah di bawah kapasitas. Bagus menjelang lomba, tapi kalau bertahan lama artinya latihannya kurang.`);
+    else if (f > -10) P.push(`Form <b>${f}</b> ada di <b>zona seimbang</b>: tidak segar, tidak terbebani. Ini tempat yang paling produktif untuk membangun kebugaran.`);
+    else if (f > -20) P.push(`Form <b>${f}</b> berarti kamu <b>sedang terbebani</b>. Masih zona adaptasi, tapi butuh hari mudah dalam waktu dekat.`);
+    else P.push(`Form <b>${f}</b> di bawah −20 — beban akut jauh di atas kapasitas. Ini zona rawan cedera, bukan zona adaptasi. Kurangi volume beberapa hari.`);
+    const d = UI.daysUntil(goals.race_date);
+    if (d>=0 && d<=14) P.push(d<=7
+      ? `${d} hari ke lomba. Di minggu taper, fatigue seharusnya turun dan form naik. Kalau form masih di bawah −10 tiga hari lagi, potong volume lebih agresif.`
+      : `${d} hari ke lomba. Beban berat masih boleh sampai H-7, setelah itu form yang harus dinaikkan.`);
+    coach.querySelector('.cb-txt').innerHTML = P.map(x=>`<p>${x}</p>`).join('');
   }
+
   function sparkline(rows) {
     if (rows.length < 2) return '';
     const W=320,H=74,P=4;
@@ -239,24 +319,39 @@
       <path class="atl" d="${path('atl')}"/><path class="ctl" d="${path('ctl')}"/></svg>`;
   }
 
-  /* ================= GRAFIK PENUH (gaya Coros) ================= */
-  let fullMetric = 'ctl', fullData = [], fullIdx = -1;
-  const FULLTABS = [['ctl','Fitness'],['atl','Fatigue'],['form','Form'],['sleep_h','Tidur'],['rhr','Resting HR']];
+  /* ================= GRAFIK PENUH (gaya intervals.icu) =================
+     Fitness dan Fatigue ditumpuk pada satu sumbu supaya trennya bisa dibandingkan.
+     Form dan Ramp punya panel sendiri di bawah — keduanya berayun di sekitar nol,
+     jadi menumpuknya dengan CTL/ATL cuma akan membuat semuanya gepeng. */
+  const RANGES = [[30,'1 bln'],[90,'3 bln'],[180,'6 bln'],[365,'1 thn']];
+  const LAYERS = [['ctl','Fitness'],['atl','Fatigue'],['form','Form'],['ramp','Ramp']];
+  let fullRange = 90, fullIdx = -1;
+  let fullOn = { ctl:true, atl:true, form:true, ramp:false };
+
+  function fullSeries() {
+    const rows = fitRows() || [];
+    /* Ramp = perubahan fitness dalam 7 hari. Itu ukuran seberapa cepat beban naik. */
+    const withRamp = rows.map((r,i) => Object.assign({}, r, {
+      ramp: i >= 7 && rows[i-7].ctl != null && r.ctl != null ? +(r.ctl - rows[i-7].ctl).toFixed(1) : null
+    }));
+    return withRamp.slice(-fullRange);
+  }
 
   function openFull() {
-    const rows = fitRows(); if (!rows) return;
-    fullData = rows.slice(-60);
+    if (!fitRows()) return;
     $('#full-chart').hidden = false;
     document.body.style.overflow = 'hidden';
-    $('#full-tabs').innerHTML = FULLTABS.map(([k,l]) =>
-      `<button data-m="${k}"${k===fullMetric?' aria-current="true"':''} type="button">${l}</button>`).join('');
-    $$('#full-tabs button').forEach(b => b.onclick = () => { fullMetric=b.dataset.m; fullIdx=-1; drawFull(); });
+    $('#full-range').innerHTML = RANGES.map(([d,l]) =>
+      `<button data-r="${d}"${d===fullRange?' aria-current="true"':''} type="button">${l}</button>`).join('');
+    $('#full-layers').innerHTML = LAYERS.map(([k,l]) =>
+      `<button class="lay" data-l="${k}"${fullOn[k]?' aria-current="true"':''} type="button">${l}</button>`).join('');
+    $$('#full-range button').forEach(b => b.onclick = () => { fullRange=+b.dataset.r; fullIdx=-1; openFull(); });
+    $$('#full-layers button').forEach(b => b.onclick = () => { fullOn[b.dataset.l] = !fullOn[b.dataset.l]; openFull(); });
     fullIdx = -1; drawFull();
   }
   function closeFull(){ $('#full-chart').hidden = true; document.body.style.overflow=''; }
 
   function drawFull() {
-    $$('#full-tabs button').forEach(b => b.dataset.m===fullMetric ? b.setAttribute('aria-current','true') : b.removeAttribute('aria-current'));
     const stage = $('#full-stage'), rot = $('#full-rot');
     const portrait = window.innerHeight > window.innerWidth;
     rot.style.setProperty('--rw', stage.clientWidth+'px');
@@ -264,35 +359,89 @@
     const W = portrait ? stage.clientHeight : stage.clientWidth;
     const H = portrait ? stage.clientWidth  : stage.clientHeight;
 
-    const pts = fullData.map(d => ({ k:d.date, v:d[fullMetric] })).filter(p=>p.v!=null);
-    if (pts.length < 2) { rot.innerHTML = `<div style="display:grid;place-items:center;height:100%;color:var(--fg-3);font-size:13px">Belum cukup data untuk metrik ini.</div>`; $('#full-read').textContent=''; return; }
-    const L=46,R=16,T=18,B=34;
-    let lo=Math.min(...pts.map(p=>p.v)), hi=Math.max(...pts.map(p=>p.v));
-    if(hi===lo){hi=lo+1;lo-=1;} const pad=(hi-lo)*.12; lo-=pad; hi+=pad;
-    const x=i=>L+(i/(pts.length-1))*(W-L-R), y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
-    const d = pts.map((p,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ');
-    let s='';
-    for (let g=0; g<=4; g++){ const v=lo+(hi-lo)*(1-g/4), yy=y(v);
-      s+=`<line class="grid" x1="${L}" y1="${yy.toFixed(1)}" x2="${W-R}" y2="${yy.toFixed(1)}"/>`;
-      s+=`<text x="6" y="${(yy+4).toFixed(1)}">${v.toFixed(fullMetric==='sleep_h'?1:0)}</text>`; }
-    s+=`<path class="fill" d="${d} L${x(pts.length-1).toFixed(1)} ${H-B} L${L} ${H-B} Z"/><path class="line" d="${d}"/>`;
-    const i = fullIdx<0 ? pts.length-1 : Math.min(fullIdx, pts.length-1);
-    s+=`<line class="cursor" x1="${x(i).toFixed(1)}" y1="${T}" x2="${x(i).toFixed(1)}" y2="${H-B}"/>`;
-    s+=`<circle class="knob" cx="${x(i).toFixed(1)}" cy="${y(pts[i].v).toFixed(1)}" r="5.5"/>`;
-    s+=`<text x="${L}" y="${H-10}">${UI.fmt(pts[0].k)}</text>`;
-    s+=`<text x="${W-R}" y="${H-10}" text-anchor="end">${UI.fmt(pts[pts.length-1].k)}</text>`;
-    rot.innerHTML = `<svg class="fchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${s}</svg>`;
+    const rows = fullSeries();
+    if (rows.length < 2) { rot.innerHTML = `<div style="display:grid;place-items:center;height:100%;color:var(--fg-3);font-size:13px">Belum cukup data untuk rentang ini.</div>`; $('#full-read').textContent=''; return; }
 
-    const lbl = (FULLTABS.find(t=>t[0]===fullMetric)||[])[1] || '';
-    const unit = fullMetric==='sleep_h' ? ' jam' : fullMetric==='rhr' ? ' bpm' : '';
-    $('#full-read').innerHTML = `<b>${(+pts[i].v).toFixed(fullMetric==='sleep_h'?1:0)}${unit}</b> ${lbl} · ${UI.fmt(pts[i].k, true)}`;
+    const L=44, R=14, T=14, B=26, GAP=8;
+    const subs = ['form','ramp'].filter(k=>fullOn[k]);
+    const subH = subs.length ? Math.min(78, (H-T-B-GAP*subs.length) * 0.24) : 0;
+    const mainH = H - T - B - subs.length*(subH+GAP);
+    const x = i => L + (i/(rows.length-1))*(W-L-R);
+
+    function scale(keys, y0, h) {
+      const vals = [];
+      keys.forEach(k => rows.forEach(r => { if (r[k]!=null) vals.push(r[k]); }));
+      if (!vals.length) return null;
+      let lo=Math.min(...vals), hi=Math.max(...vals);
+      if (hi===lo){hi=lo+1;lo-=1;} const pad=(hi-lo)*.1; lo-=pad; hi+=pad;
+      return { lo, hi, y: v => y0 + (1-(v-lo)/(hi-lo))*h };
+    }
+    const path = (k, sc) => rows.map((r,i)=> r[k]==null?null:((i?'L':'M')+x(i).toFixed(1)+' '+sc.y(r[k]).toFixed(1)))
+                                .filter(Boolean).join(' ').replace(/^L/,'M');
+
+    let s = '';
+    const mainKeys = ['ctl','atl'].filter(k=>fullOn[k]);
+    const scMain = mainKeys.length ? scale(mainKeys, T, mainH) : null;
+    if (scMain) {
+      for (let g=0; g<=4; g++){ const v=scMain.lo+(scMain.hi-scMain.lo)*(1-g/4), yy=scMain.y(v);
+        s+=`<line class="grid" x1="${L}" y1="${yy.toFixed(1)}" x2="${W-R}" y2="${yy.toFixed(1)}"/>`;
+        s+=`<text x="6" y="${(yy+4).toFixed(1)}">${v.toFixed(0)}</text>`; }
+      if (fullOn.ctl) s+=`<path class="f-ctl" d="${path('ctl',scMain)} L${x(rows.length-1).toFixed(1)} ${(T+mainH).toFixed(1)} L${L} ${(T+mainH).toFixed(1)} Z"/>`;
+      if (fullOn.atl) s+=`<path class="l-atl" d="${path('atl',scMain)}"/>`;
+      if (fullOn.ctl) s+=`<path class="l-ctl" d="${path('ctl',scMain)}"/>`;
+    }
+    const scSub = {};
+    let yCur = T + mainH;
+    subs.forEach(k => {
+      yCur += GAP;
+      const sc = scale([k], yCur, subH); scSub[k]=sc;
+      s+=`<rect class="panelbg" x="${L}" y="${yCur.toFixed(1)}" width="${(W-L-R).toFixed(1)}" height="${subH.toFixed(1)}" rx="6"/>`;
+      if (sc) {
+        if (sc.lo < 0 && sc.hi > 0) s+=`<line class="zero" x1="${L}" y1="${sc.y(0).toFixed(1)}" x2="${W-R}" y2="${sc.y(0).toFixed(1)}"/>`;
+        s+=`<path class="l-${k}" d="${path(k,sc)}"/>`;
+        s+=`<text class="plab" x="${L+7}" y="${(yCur+13).toFixed(1)}">${k==='form'?'FORM':'RAMP'}</text>`;
+        s+=`<text x="6" y="${(yCur+11).toFixed(1)}">${sc.hi.toFixed(0)}</text>`;
+        s+=`<text x="6" y="${(yCur+subH-2).toFixed(1)}">${sc.lo.toFixed(0)}</text>`;
+      }
+      yCur += subH;
+    });
+
+    const i = fullIdx<0 ? rows.length-1 : Math.min(Math.max(fullIdx,0), rows.length-1);
+    const cx = x(i);
+    s+=`<line class="cursor" x1="${cx.toFixed(1)}" y1="${T}" x2="${cx.toFixed(1)}" y2="${(H-B).toFixed(1)}"/>`;
+    if (scMain && fullOn.ctl && rows[i].ctl!=null) s+=`<circle class="knob" style="fill:var(--c-ctl)" cx="${cx.toFixed(1)}" cy="${scMain.y(rows[i].ctl).toFixed(1)}" r="4.5"/>`;
+    if (scMain && fullOn.atl && rows[i].atl!=null) s+=`<circle class="knob" style="fill:var(--c-atl)" cx="${cx.toFixed(1)}" cy="${scMain.y(rows[i].atl).toFixed(1)}" r="4"/>`;
+    subs.forEach(k => { if (scSub[k] && rows[i][k]!=null)
+      s+=`<circle class="knob" style="fill:var(--c-${k})" cx="${cx.toFixed(1)}" cy="${scSub[k].y(rows[i][k]).toFixed(1)}" r="4"/>`; });
+
+    /* Tooltip menempel di garis yang sedang digeser, bukan dipaku di pojok. */
+    const lines = [];
+    LAYERS.forEach(([k,l]) => { if (fullOn[k] && rows[i][k]!=null)
+      lines.push([l, k==='form'&&rows[i][k]>0?'+'+rows[i][k]:rows[i][k], k]); });
+    const bw = 118, bh = 20 + lines.length*15;
+    let bx = cx + 12; if (bx + bw > W-R) bx = cx - 12 - bw;
+    let by = Math.max(T+2, Math.min(T + mainH*0.15, H-B-bh-2));
+    s+=`<g><rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${bh}" rx="9"
+         fill="var(--bg)" stroke="var(--rule)"/>
+         <text x="${(bx+9).toFixed(1)}" y="${(by+15).toFixed(1)}" style="fill:var(--fg);font-size:11px;font-weight:600">${UI.fmt(rows[i].date, true)}</text>`;
+    lines.forEach((ln,j) => {
+      const yy = by + 30 + j*15;
+      s+=`<rect x="${(bx+9).toFixed(1)}" y="${(yy-4).toFixed(1)}" width="10" height="2.5" rx="1.2" fill="var(--c-${ln[2]})"/>`;
+      s+=`<text x="${(bx+24).toFixed(1)}" y="${yy.toFixed(1)}" style="fill:var(--fg-2);font-size:10.5px">${ln[0]}</text>`;
+      s+=`<text x="${(bx+bw-9).toFixed(1)}" y="${yy.toFixed(1)}" text-anchor="end" style="fill:var(--fg);font-size:11px;font-weight:600">${ln[1]}</text>`;
+    });
+    s+=`</g>`;
+
+    s+=`<text x="${L}" y="${(H-8).toFixed(1)}">${UI.fmt(rows[0].date)}</text>`;
+    s+=`<text x="${W-R}" y="${(H-8).toFixed(1)}" text-anchor="end">${UI.fmt(rows[rows.length-1].date)}</text>`;
+    rot.innerHTML = `<svg class="fchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${s}</svg>`;
+    $('#full-read').innerHTML = `<b>${UI.fmt(rows[i].date, true)}</b> · ${fullRange===365?'1 tahun':fullRange+' hari'}`;
 
     stage.onpointerdown = stage.onpointermove = e => {
-      if (e.buttons === 0 && e.type === 'pointermove') return;
+      if (e.type==='pointermove' && e.buttons===0) return;
       const r0 = stage.getBoundingClientRect();
-      /* Saat potret, grafik diputar 90°: sumbu waktu jadi vertikal di layar. */
-      const p = portrait ? (e.clientY - r0.top)/r0.height : (e.clientX - r0.left)/r0.width;
-      fullIdx = Math.round(clamp(p,0,1) * (pts.length-1));
+      const p = portrait ? (e.clientY-r0.top)/r0.height : (e.clientX-r0.left)/r0.width;
+      fullIdx = Math.round(clamp(p,0,1)*(rows.length-1));
       drawFull();
     };
   }
@@ -549,8 +698,54 @@
     else { $('#avatar-img').hidden=true; $('#avatar-fallback').hidden=false; $('#avatar-fallback').textContent=(profile.name||'R')[0].toUpperCase(); }
   }
 
+  /* ================= POPUP TARGET ================= */
+  let tpEdit = null;                       // id yang sedang diedit, atau 'new'
+  function openTargets() {
+    tpEdit = null; renderTargetPop(); openPop('target-pop');
+  }
+  function renderTargetPop() {
+    const list = (targets || TARGETS.DEFAULTS).slice()
+      .map(t => Object.assign({}, t, { days: TARGETS.daysTo(t.date, today) }))
+      .sort((a,b) => a.days - b.days);
+    $('#tp-list').innerHTML = list.map(t => `<button class="tgt${t.days<0?' past':''}" data-t="${t.id}" type="button">
+        <span class="n">${t.days<0 ? '—' : t.days}</span>
+        <span class="b"><strong>${t.name}</strong><span>${UI.fmt(t.date, true)}${t.days<0?' · sudah lewat':''}</span></span>
+        <span class="tag">${t.tag || (t.kind==='race'?'Lomba':'Target')}</span>
+      </button>`).join('') || `<p class="empty-note">Belum ada target.</p>`;
+    $$('#tp-list .tgt').forEach(b => b.onclick = () => { tpEdit = b.dataset.t; fillTargetForm(); });
+    $('#tp-form').hidden = !tpEdit;
+    $('#tp-add').hidden = !!tpEdit;
+    $('#tp-title').textContent = tpEdit ? (tpEdit==='new' ? 'Target baru' : 'Ubah target') : 'Target';
+  }
+  function fillTargetForm() {
+    const t = tpEdit==='new' ? null : (targets||[]).find(x=>x.id===tpEdit);
+    $('#tp-name').value = t ? t.name : '';
+    $('#tp-date').value = t ? t.date : '';
+    $('#tp-tag').value  = t ? (t.tag || (t.kind==='race'?'Lomba':'Target')) : '';
+    $('#tp-del').hidden = !t;
+    $('#tp-tagn').textContent = $('#tp-tag').value.length + '/14';
+    renderTargetPop();
+  }
+  async function saveTarget() {
+    const name = $('#tp-name').value.trim(), date = $('#tp-date').value;
+    if (!name || !date) { flash('#tp-title','') ; $('#tp-name').focus(); return; }
+    const tag = $('#tp-tag').value.trim().slice(0,14) || 'Target';
+    targets = targets || TARGETS.DEFAULTS.slice();
+    if (tpEdit === 'new') targets.push({ id:'t'+Date.now(), name, date, tag, kind: /lomba|race|run/i.test(tag)?'race':'goal' });
+    else { const t = targets.find(x=>x.id===tpEdit); if (t) Object.assign(t, { name, date, tag }); }
+    await Store.put('meta','targets',targets);
+    tpEdit = null; renderTargetPop(); renderAll();
+  }
+  async function delTarget() {
+    targets = (targets||[]).filter(x=>x.id!==tpEdit);
+    await Store.put('meta','targets',targets);
+    tpEdit = null; renderTargetPop(); renderAll();
+  }
+  function openPop(id){ const p=$('#'+id); p.hidden=false; requestAnimationFrame(()=>p.classList.add('open')); document.body.style.overflow='hidden'; }
+  function closePop(id){ const p=$('#'+id); p.classList.remove('open'); document.body.style.overflow=''; setTimeout(()=>{p.hidden=true;},240); }
+
   /* ================= KALENDER ================= */
-  let calMonth = null;
+  let calMonth = null, calMetric = 'ready';
   function openCal() {
     calMonth = UI.parse(sel); calMonth.setDate(1);
     renderCal(); UI.openSheet('cal-sheet');
@@ -570,10 +765,44 @@
       html += `<button type="button" data-k="${k}"${off?' disabled':''} class="${has?'has ':''}${k===sel?'sel':''}">${d}</button>`;
     }
     $('#cal-grid').innerHTML = html;
+    paintCalendar();
     $$('#cal-grid button:not(:disabled)').forEach(b => b.onclick = () => {
       sel = b.dataset.k; UI.closeSheet('cal-sheet'); renderAll();
     });
     $('#cal-note').textContent = `Hari pertama Areté: ${UI.fmt(lo, true)}. Tanggal sebelum itu dan yang belum berlalu tidak bisa dipilih.`;
+  }
+
+  /* Warna tiap tanggal mengikuti metrik yang dipilih — recovery, fitness, atau
+     fatigue. Skalanya relatif terhadap rentang yang benar-benar ada di bulan itu,
+     supaya perbedaan kecil tetap terbaca. */
+  function paintCalendar() {
+    const wm = wellnessMap();
+    const cells = $$('#cal-grid button[data-k]');
+    const vals = [];
+    const valueOf = k => {
+      if (calMetric === 'ready') { const r = readiness(k); return r.score; }
+      const w = wm[k]; return w ? w[calMetric] : null;
+    };
+    const map = {};
+    cells.forEach(b => { const v = valueOf(b.dataset.k); map[b.dataset.k]=v; if (v!=null) vals.push(v); });
+    if (!vals.length) { cells.forEach(b=>{ const q=b.querySelector('.q'); if(q) q.remove(); });
+      $('#cal-legend').innerHTML = `<span>Belum ada data untuk metrik ini di bulan ini</span>`; return; }
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const goodHigh = calMetric !== 'atl';        /* fatigue: makin tinggi makin berat */
+    cells.forEach(b => {
+      let q = b.querySelector('.q'); if (!q) { q = document.createElement('span'); q.className='q'; b.appendChild(q); }
+      const v = map[b.dataset.k];
+      if (v == null) { q.style.background='transparent'; return; }
+      const t = hi===lo ? .5 : (v-lo)/(hi-lo);
+      const good = goodHigh ? t : 1-t;
+      q.style.background = good>=.66 ? 'var(--good)' : good>=.33 ? 'var(--mid)' : 'var(--low)';
+    });
+    const nm = { ready:'Recovery', ctl:'Fitness', atl:'Fatigue' }[calMetric];
+    $('#cal-legend').innerHTML =
+      `<span><i style="background:var(--low)"></i>${goodHigh?'rendah':'tinggi'}</span>
+       <span><i style="background:var(--mid)"></i>sedang</span>
+       <span><i style="background:var(--good)"></i>${goodHigh?'tinggi':'rendah'}</span>
+       <span style="margin-left:6px">${nm} ${lo.toFixed(0)}–${hi.toFixed(0)}</span>`;
   }
 
   /* ================= SHEET CATAT ================= */
@@ -652,6 +881,19 @@
     $('#cal-prev').onclick = () => { calMonth.setMonth(calMonth.getMonth()-1); renderCal(); };
     $('#cal-next').onclick = () => { calMonth.setMonth(calMonth.getMonth()+1); renderCal(); };
     $('#c-fit').onclick = openFull;
+    $('#cal-btn').onclick = openCal;
+    $('#target-btn').onclick = openTargets;
+    $$('[data-close-pop]').forEach(b => b.onclick = () => closePop(b.dataset.closePop));
+    $('#tp-add').onclick = () => { tpEdit='new'; fillTargetForm(); };
+    $('#tp-cancel').onclick = () => { tpEdit=null; renderTargetPop(); };
+    $('#tp-save').onclick = saveTarget;
+    $('#tp-del').onclick = delTarget;
+    $('#tp-tag').oninput = () => { $('#tp-tagn').textContent = $('#tp-tag').value.length + '/14'; };
+    $$('#cal-metric button').forEach(b => b.onclick = () => {
+      calMetric = b.dataset.cm;
+      $$('#cal-metric button').forEach(x => x.dataset.cm===calMetric ? x.setAttribute('aria-current','true') : x.removeAttribute('aria-current'));
+      paintCalendar();
+    });
     $('#full-close').onclick = closeFull;
     window.addEventListener('resize', () => { if(!$('#full-chart').hidden) drawFull(); });
     $('#plan-reset').onclick = async () => {
@@ -765,7 +1007,7 @@
     if (sel > today) sel = today;
     renderAll();
   }
-  async function pull() { [wellness, activities] = await Promise.all([Api.wellness(90), Api.activities(42)]); }
+  async function pull() { [wellness, activities] = await Promise.all([Api.wellness(365), Api.activities(42)]); }
 
   (async function boot() {
     wire();

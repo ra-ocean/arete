@@ -1,6 +1,6 @@
 /* Areté service worker — cache-first for the shell, network-first for nothing else.
    Bump CACHE when any shell file changes, otherwise phones keep the old copy. */
-const CACHE = 'arete-v6';
+const CACHE = 'arete-v7';
 const SHELL = [
   './',
   './index.html',
@@ -17,7 +17,9 @@ const SHELL = [
   './assets/js/app.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
-  './assets/icons/favicon.svg'
+  './assets/icons/favicon.svg',
+  './assets/icons/coach.png',
+  './assets/icons/aicoach.png'
 ];
 
 self.addEventListener('install', e => {

@@ -524,3 +524,111 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .nav-mini .nav li.cur{display:block}
 .nav-mini .nav li.cur button{height:50px;padding:0 22px;flex-direction:row;gap:9px;font-size:12.5px}
 .nav-mini .nav .fab{margin-top:0}
+
+
+/* ============================================================
+   IKON MASK — satu berkas hitam dipakai untuk tema siang & malam.
+   Warnanya diambil dari currentColor lewat mask, jadi tidak perlu
+   menyiapkan versi putih terpisah dan tidak akan pernah salah warna.
+   ============================================================ */
+.ic{display:inline-block;flex:0 0 auto;width:20px;height:20px;background:currentColor;
+    -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+    -webkit-mask-position:center;mask-position:center;
+    -webkit-mask-size:contain;mask-size:contain}
+.ic-coach{-webkit-mask-image:url('../icons/coach.png');mask-image:url('../icons/coach.png')}
+.ic-ai{-webkit-mask-image:url('../icons/aicoach.png');mask-image:url('../icons/aicoach.png')}
+
+.iconbtn{flex:0 0 36px;width:36px;height:36px;border:0;border-radius:50%;background:var(--sunk);
+         color:var(--fg-2);display:grid;place-items:center;cursor:pointer;transition:color .15s ease}
+.iconbtn:hover{color:var(--accent)}
+.iconbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;
+             stroke-linecap:round;stroke-linejoin:round}
+
+/* ---- kotak narasi coach ---- */
+.coachbox{display:flex;gap:11px;margin-top:15px;padding-top:14px;border-top:1px solid var(--rule)}
+.coachbox .ic{margin-top:2px;color:var(--accent)}
+.cb-txt{flex:1;min-width:0;font-size:13.5px;line-height:1.62;color:var(--fg-2)}
+.cb-txt b{color:var(--fg);font-weight:600}
+.cb-txt p{margin:0 0 8px}
+.cb-txt p:last-child{margin-bottom:0}
+.hero-onel{font-size:13px;color:var(--fg-2);line-height:1.5}
+
+/* ---- label target yang bisa diketuk ---- */
+.tlabel{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;padding:2px 2px 9px;
+        cursor:pointer;color:var(--fg);font:inherit}
+.tlabel .ic{width:17px;height:17px;color:var(--accent)}
+.tlabel span{font-size:11px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--fg-3)}
+.tlabel em{font-style:normal;font-size:11px;color:var(--fg-3);margin-left:-4px}
+.tlabel .chev{margin-left:auto;font-size:16px;color:var(--fg-3);letter-spacing:0}
+
+/* ---- popup gaya Bevel ---- */
+.pop{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:20px}
+.pop .scrim{position:absolute;inset:0;background:rgba(0,0,0,.5);opacity:0;transition:opacity .22s ease;
+            backdrop-filter:blur(2px)}
+.pop.open .scrim{opacity:1}
+.pop-card{position:relative;width:100%;max-width:400px;max-height:82dvh;overflow-y:auto;
+          background:var(--bg);border-radius:22px;padding:18px;box-shadow:var(--lift-lg);
+          transform:scale(.92);opacity:0;transition:transform .26s cubic-bezier(.2,.9,.3,1),opacity .2s ease}
+.pop.open .pop-card{transform:none;opacity:1}
+.pop-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:14px}
+.pop-head h2{margin:0;font-size:17px;font-weight:600;letter-spacing:-.015em}
+
+.tgt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);
+     border:0;border-radius:14px;padding:13px 14px;margin-bottom:8px;cursor:pointer;color:inherit;font:inherit}
+.tgt .n{font-size:22px;font-weight:600;letter-spacing:-.03em;color:var(--accent);
+        font-variant-numeric:tabular-nums;flex:0 0 auto;min-width:34px}
+.tgt .b{flex:1;min-width:0}
+.tgt .b strong{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em;
+               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tgt .b span{font-size:11.5px;color:var(--fg-3)}
+.tgt .tag{font-size:9.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+          border-radius:var(--r-pill);padding:4px 9px;background:var(--accent-soft);color:var(--accent);
+          white-space:nowrap}
+.tgt.past{opacity:.5}
+#tp-tagn{font-style:normal;color:var(--fg-3);float:right;letter-spacing:0;text-transform:none}
+
+/* ---- kalender performa ---- */
+.calgrid button{position:relative}
+.calgrid button .q{position:absolute;left:6px;right:6px;bottom:5px;height:3px;border-radius:2px;background:transparent}
+.callegend{display:flex;align-items:center;gap:10px;justify-content:center;margin:12px 0 4px;
+           font-size:10px;color:var(--fg-3);font-weight:600;letter-spacing:.05em}
+.callegend i{width:16px;height:8px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:5px}
+
+/* ---- tiga kotak body fit ---- */
+.fitbox{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.fb{background:var(--bg);border-radius:14px;padding:12px 11px}
+.fb .k{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-3)}
+.fb .v{font-size:25px;font-weight:600;letter-spacing:-.035em;line-height:1.1;margin-top:3px;
+       font-variant-numeric:tabular-nums}
+.fb .d{display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;font-weight:600;
+       font-variant-numeric:tabular-nums}
+.fb .d .ar{font-size:12px;line-height:1}
+.fb .p{font-size:10px;color:var(--fg-3);margin-top:2px;font-variant-numeric:tabular-nums}
+.up{color:var(--good)} .down{color:var(--low)} .flat{color:var(--fg-2)}
+
+/* ---- grafik penuh: kontrol + tooltip yang ikut garis ---- */
+.full-ctl{display:flex;flex-direction:column;gap:7px;padding:8px 12px calc(12px + env(safe-area-inset-bottom,0px))}
+.full-tabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:0}
+.full-tabs button{background:var(--sunk);border:1px solid transparent;color:var(--fg-2);
+                  border-radius:var(--r-pill);padding:7px 13px;font-size:11.5px;font-weight:600;cursor:pointer}
+.full-tabs button[aria-current]{background:var(--accent);color:#fff;border-color:var(--accent)}
+[data-mode="night"] .full-tabs button[aria-current]{color:#000}
+.full-tabs button.lay[aria-current]{background:transparent;border-color:currentColor}
+.full-tabs button.lay[aria-current][data-l="ctl"]{color:var(--c-ctl)}
+.full-tabs button.lay[aria-current][data-l="atl"]{color:var(--c-atl)}
+.tip{position:absolute;z-index:3;pointer-events:none;background:var(--bg);border:1px solid var(--rule);
+     border-radius:11px;padding:8px 11px;box-shadow:var(--lift);font-size:11.5px;line-height:1.5;
+     font-variant-numeric:tabular-nums;white-space:nowrap;transition:transform .05s linear}
+.tip b{display:block;font-size:12px;margin-bottom:3px;color:var(--fg)}
+.tip s{text-decoration:none;display:block}
+.tip s i{display:inline-block;width:9px;height:2px;vertical-align:middle;margin-right:6px;border-radius:1px}
+:root{--c-ctl:#2E6FB7;--c-atl:#8B4BC4;--c-form:#2F7D5B;--c-ramp:#B8862B}
+[data-mode="night"]{--c-ctl:#6FA8E0;--c-atl:#B98BE0;--c-form:#6FC49B;--c-ramp:#D7B462}
+.fchart .l-ctl{fill:none;stroke:var(--c-ctl);stroke-width:2.2;stroke-linejoin:round}
+.fchart .l-atl{fill:none;stroke:var(--c-atl);stroke-width:1.8;stroke-linejoin:round}
+.fchart .l-form{fill:none;stroke:var(--c-form);stroke-width:2;stroke-linejoin:round}
+.fchart .l-ramp{fill:none;stroke:var(--c-ramp);stroke-width:2;stroke-linejoin:round}
+.fchart .f-ctl{fill:var(--c-ctl);opacity:.12}
+.fchart .zero{stroke:var(--rule);stroke-width:1;stroke-dasharray:3 3}
+.fchart .panelbg{fill:var(--surface)}
+.fchart .plab{fill:var(--fg-3);font-size:10px;font-weight:600;letter-spacing:.06em}

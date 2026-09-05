@@ -42,6 +42,9 @@
       <img id="avatar-img" alt="" hidden>
       <span id="avatar-fallback">R</span>
     </button>
+    <button class="iconbtn" id="cal-btn" type="button" aria-label="Kalender performa">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 9.5h17M8 3.2v3.4M16 3.2v3.4"/></svg>
+    </button>
     <div class="daynav">
       <button class="arrow" id="day-prev" type="button" aria-label="Hari sebelumnya">‹</button>
       <button class="daybtn" id="day-open" type="button">
@@ -62,6 +65,10 @@
       <p class="verdict-sub" id="verdict-sub"></p>
     </div>
 
+    <button class="tlabel" id="target-btn" type="button">
+      <i class="ic ic-coach" aria-hidden="true"></i><span>Target</span>
+      <em id="target-count"></em><span class="chev">›</span>
+    </button>
     <div class="targets" id="targets" aria-label="Target">
       <div class="tstrip" id="tstrip"></div>
     </div>
@@ -71,17 +78,19 @@
         <div class="ring" id="ring"></div>
         <div class="hero-txt">
           <div class="hero-lab" id="ready-lab">Kesiapan</div>
-          <p id="ready-say"></p>
+          <div class="hero-onel" id="ready-onel"></div>
         </div>
       </div>
       <div class="sleepbars" id="sleepbars"></div>
       <div class="hero-mini" id="ready-mini"></div>
+      <div class="coachbox" id="ready-say"><i class="ic ic-coach" aria-hidden="true"></i><div class="cb-txt"></div></div>
     </div>
 
-    <button class="panelcard tappable" id="c-fit" type="button">
-      <div class="pc-head"><h2>Body fit</h2><span class="pc-hint">Ketuk untuk grafik penuh</span></div>
+    <div class="panelcard" id="c-fit-card">
+      <div class="pc-head"><h2>Body fit</h2><button class="link" id="c-fit" type="button">Grafik penuh ›</button></div>
       <div id="fit-body"></div>
-    </button>
+      <div class="coachbox" id="fit-coach"><i class="ic ic-ai" aria-hidden="true"></i><div class="cb-txt"></div></div>
+    </div>
 
     <div class="panelcard" id="c-plan">
       <div class="pc-head"><h2>Latihan hari ini</h2><button class="link" id="plan-reset" type="button" hidden>Ulangi</button></div>
@@ -319,6 +328,31 @@
  </div>
 </div>
 
+<!-- ============ POPUP: TARGET ============ -->
+<div class="pop" id="target-pop" hidden>
+  <div class="scrim" data-close-pop="target-pop"></div>
+  <div class="pop-card" role="dialog" aria-modal="true" aria-label="Target">
+    <div class="pop-head">
+      <h2 id="tp-title">Target</h2>
+      <button class="link" data-close-pop="target-pop" type="button">Tutup</button>
+    </div>
+    <div id="tp-list"></div>
+    <div id="tp-form" hidden>
+      <div class="field"><label for="tp-name">Nama target</label><input id="tp-name" type="text" maxlength="34" placeholder="Garmin Run 10K"></div>
+      <div class="row">
+        <div class="field"><label for="tp-date">Tanggal</label><input id="tp-date" type="date"></div>
+        <div class="field"><label for="tp-tag">Tagging <em id="tp-tagn">0/14</em></label><input id="tp-tag" type="text" maxlength="14" placeholder="Lomba"></div>
+      </div>
+      <div class="btnrow">
+        <button class="btn sm" id="tp-save" type="button">Simpan</button>
+        <button class="btn ghost sm" id="tp-cancel" type="button">Batal</button>
+        <button class="btn ghost sm danger" id="tp-del" type="button" hidden>Hapus</button>
+      </div>
+    </div>
+    <button class="btn ghost sm" id="tp-add" type="button">+ Tambah target</button>
+  </div>
+</div>
+
 <!-- ============ SHEET: KALENDER ============ -->
 <div class="sheet" id="cal-sheet" hidden>
  <div class="scrim" data-close-sheet="cal-sheet"></div>
@@ -330,7 +364,13 @@
     <span id="cal-month"></span>
     <button class="arrow" id="cal-next" type="button" aria-label="Bulan berikutnya">›</button>
   </div>
+  <div class="subtabs" id="cal-metric">
+    <button data-cm="ready" aria-current="true" type="button">Recovery</button>
+    <button data-cm="ctl" type="button">Fitness</button>
+    <button data-cm="atl" type="button">Fatigue</button>
+  </div>
   <div class="calgrid" id="cal-grid"></div>
+  <div class="callegend" id="cal-legend"></div>
   <p class="note-sm" id="cal-note"></p>
  </div>
 </div>
@@ -342,7 +382,10 @@
     <button class="full-close" id="full-close" type="button" aria-label="Tutup">✕</button>
   </div>
   <div class="full-stage" id="full-stage"><div class="full-rot" id="full-rot"></div></div>
-  <div class="full-tabs" id="full-tabs"></div>
+  <div class="full-ctl">
+    <div class="full-tabs" id="full-range"></div>
+    <div class="full-tabs" id="full-layers"></div>
+  </div>
 </div>
 
 <script src="./assets/js/store.js"></script>
