@@ -128,33 +128,149 @@
   }
 
   /* ================= VONIS HARI ================= */
-  /* Dua kalimat, suara coach. Tidak ada em dash, tidak ada angka telanjang
-     tanpa arti. Kalau menyuruh sesuatu, sebutkan cara melakukannya. */
-  /* Instruksi dosis yang konkret untuk sesi hari itu. Kalimat seperti
-     "termasuk bagian yang berat" tidak menolong siapa pun — yang menolong
-     adalah menyebut sesi mana, angkanya berapa, dan apa yang diubah. */
-  function doseLine(w, lvl) {
-    if (w.kind === 'st') {
-      return lvl === 'hi'  ? `${w.title} pakai beban penuh. Kalau dua reps terakhir masih terasa ringan, naikkan 2,5 kg minggu depan.`
-           : lvl === 'mid' ? `${w.title} pakai beban yang sama dengan minggu lalu. Hari ini bukan hari untuk naik beban.`
-           :                 `${w.title} turunkan bebannya 10 sampai 15 persen. Set dan repsnya tetap, jangan dipotong.`;
+  /* Hero pagi harus terasa seperti pesan singkat dari coach.
+     Satu kondisi, satu alasan yang paling relevan, satu keputusan untuk sesi hari ini.
+     Jangan menumpuk semua data dan jangan memakai metafora. */
+  const briefNum = v => {
+    const n = +v;
+    if (!Number.isFinite(n)) return String(v);
+    return (Math.round(n * 10) / 10).toString().replace('.', ',');
+  };
+
+  function recoveryCue(r) {
+    const target = goals.sleep_target_h || 7;
+    const rec = mergedRecovery().filter(x => x.key <= sel).slice(-30);
+    const bH = median(rec.map(x=>x.hrv).filter(v=>v!=null));
+    const bR = median(rec.map(x=>x.rhr).filter(v=>v!=null));
+    const usedHrv = r.hrv != null && !r.need.some(n=>n.startsWith('HRV'));
+    const usedRhr = r.rhr != null && !r.need.some(n=>n.startsWith('resting'));
+    const signals = [];
+
+    if (r.sleep != null) {
+      const deficit = target - r.sleep;
+      if (deficit >= 0.5) {
+        signals.push({
+          type:'sleep',
+          rank:deficit >= 1.5 ? 4 : 2,
+          text:`tidurmu baru ${briefNum(r.sleep)} jam`
+        });
+      }
     }
+
+    if (usedHrv && bH) {
+      const drop = Math.round((1 - r.hrv / bH) * 100);
+      if (drop >= 10) {
+        signals.push({
+          type:'hrv',
+          rank:drop >= 20 ? 4 : 3,
+          text:`HRV-mu ${Math.round(r.hrv)} ms, biasanya sekitar ${Math.round(bH)}`
+        });
+      }
+    }
+
+    if (usedRhr && bR) {
+      const rise = Math.round(r.rhr - bR);
+      if (rise >= 3) {
+        signals.push({
+          type:'rhr',
+          rank:rise >= 7 ? 4 : 3,
+          text:`resting HR-mu naik ${rise} bpm dari biasanya`
+        });
+      }
+    }
+
+    signals.sort((a,b) => b.rank - a.rank);
+    return signals[0] || { type:'none', rank:0, text:'' };
+  }
+
+  function doseLine(w, lvl, r) {
+    const cue = recoveryCue(r);
+    const adaAlasan = cue.type !== 'none';
+
+    if (!w) {
+      return lvl === 'lo'
+        ? `Hari ini jangan tambah latihan di luar rencana.`
+        : `Jalankan sesi sesuai rencana, nggak perlu ditambah sendiri.`;
+    }
+
+    if (w.kind === 'st') {
+      if (lvl === 'hi') {
+        return adaAlasan
+          ? `${w.title} pakai beban biasa, tapi ${cue.text}, jadi nggak perlu naik beban hari ini.`
+          : `${w.title} pakai beban penuh, dan kalau semua set masih rapi dengan sekitar 2 reps sisa, catat progresi 2,5 kg untuk minggu depan.`;
+      }
+      if (lvl === 'mid') {
+        return adaAlasan
+          ? `${w.title} tetap jalan dengan beban terakhir, tapi ${cue.text}, jadi jangan naik beban hari ini.`
+          : `${w.title} pakai beban yang sama dengan minggu lalu, jangan naik beban hari ini.`;
+      }
+      return adaAlasan
+        ? `${w.title} turunkan beban 10 sampai 15 persen karena ${cue.text}, set dan reps tetap.`
+        : `${w.title} turunkan beban 10 sampai 15 persen, set dan reps tetap.`;
+    }
+
     if (w.kind === 'run') {
       if (/kualitas/i.test(w.title)) {
-        return lvl === 'hi'  ? `Lari kualitas boleh dikejar sampai pace target dari coach, termasuk repetisi terakhir.`
-             : lvl === 'mid' ? `Lari kualitas tetap jalan, tapi ambil pace interval sekitar 10 detik per km lebih lambat dari target.`
-             :                 `Ganti lari kualitas jadi easy run dengan jarak yang sama. Interval dengan kondisi begini menambah lelah tanpa menambah kebugaran.`;
+        if (lvl === 'hi') {
+          return adaAlasan
+            ? `Sesi kualitas tetap jalan sesuai plan coach, tapi ${cue.text}, jadi jangan tambah repetisi atau pace sendiri.`
+            : `Sesi kualitas jalan sesuai plan coach, nggak perlu ditambah meskipun badan terasa enak.`;
+        }
+        if (lvl === 'mid') {
+          return adaAlasan
+            ? `Sesi kualitas tetap ikuti plan coach, tapi ${cue.text}, jadi pakai pemanasan buat cek badan dan jangan dipaksa kalau effort terasa jauh lebih berat dari biasanya.`
+            : `Sesi kualitas tetap ikuti plan coach, pakai pemanasan buat cek badan dan jangan dipaksa kalau effort terasa jauh lebih berat dari biasanya.`;
+        }
+        return adaAlasan
+          ? `Sesi kualitas jangan dipaksa hari ini karena ${cue.text}, mulai easy dulu dan stop kalau badan tetap berat.`
+          : `Sesi kualitas jangan dipaksa hari ini, mulai easy dulu dan stop kalau badan tetap berat.`;
       }
+
       if (/long/i.test(w.title)) {
-        return lvl === 'hi'  ? `Long run jalan penuh dan tetap di zona easy sampai kilometer terakhir.`
-             : lvl === 'mid' ? `Long run jalan, ambil durasi paling pendek dari rentang yang dikasih coach.`
-             :                 `Potong long run jadi setengah durasi, tetap easy.`;
+        if (lvl === 'hi') {
+          return adaAlasan
+            ? `Long run tetap jalan sesuai plan coach, tapi ${cue.text}, jadi jaga effort easy dan jangan tambah durasi.`
+            : `Long run jalan sesuai plan coach dan tetap easy sampai selesai.`;
+        }
+        if (lvl === 'mid') {
+          return adaAlasan
+            ? `Long run tetap jalan, tapi ${cue.text}, jadi pilih durasi paling pendek dari rentang yang dikasih coach dan tetap easy.`
+            : `Long run tetap jalan, pilih durasi paling pendek dari rentang yang dikasih coach dan tetap easy.`;
+        }
+        return adaAlasan
+          ? `Long run jangan dipaksa penuh karena ${cue.text}, cukup easy 30 sampai 45 menit dan lihat lagi respons badan setelahnya.`
+          : `Long run jangan dipaksa penuh hari ini, cukup easy 30 sampai 45 menit dan lihat lagi respons badan setelahnya.`;
       }
-      return lvl === 'lo' ? `Lari easy dipendekkan saja, 20 sampai 30 menit sudah cukup.`
-                          : `Lari easy jalan seperti biasa. Easy artinya benar benar easy, jangan tergoda ngebut.`;
+
+      if (lvl === 'hi') {
+        return adaAlasan
+          ? `Easy run hari ini tetap easy, tapi ${cue.text}, jadi nggak perlu cari pace.`
+          : `Easy run tetap easy, kondisi bagus bukan alasan buat ngebut.`;
+      }
+      if (lvl === 'mid') {
+        return adaAlasan
+          ? `Easy run tetap jalan, tapi ${cue.text}, jadi jaga effort ringan dan nggak perlu tambah durasi.`
+          : `Easy run tetap jalan, jaga effort ringan dan nggak perlu tambah durasi.`;
+      }
+      return adaAlasan
+        ? `Easy run hari ini cukup 20 sampai 30 menit karena ${cue.text}, dan stop kalau 10 menit awal masih terasa berat.`
+        : `Easy run hari ini cukup 20 sampai 30 menit, dan stop kalau 10 menit awal masih terasa berat.`;
     }
-    return lvl === 'lo' ? `Slot fleksibel hari ini diisi mobility saja, jangan latihan beban.`
-                        : `Slot fleksibel: kalau tidak ada sesi coach, ambil Sesi A atau B yang belum dikerjakan minggu ini.`;
+
+    if (lvl === 'lo') {
+      return adaAlasan
+        ? `Slot fleksibel hari ini cukup mobility karena ${cue.text}, nggak perlu tambah latihan beban.`
+        : `Slot fleksibel hari ini cukup mobility, nggak perlu tambah latihan beban.`;
+    }
+
+    return `Kalau tidak ada sesi coach, pilih Sesi A atau B yang belum dikerjakan minggu ini.`;
+  }
+
+  function morningTitle(score, nama) {
+    return score >= 80 ? `Pagi ini kondisimu bagus, ${nama}`
+         : score >= 65 ? `Kondisimu cukup oke pagi ini, ${nama}`
+         : score >= 50 ? `Hari ini jangan terlalu dipaksa, ${nama}`
+                       : `Recovery-mu belum bagus pagi ini, ${nama}`;
   }
 
   function verdict() {
@@ -167,32 +283,41 @@
     const hariIni = sel === today;
     const w = PLAN.week[UI.dow(sel)];
 
-    if (r.score != null && r.score < 50) {
-      const t = r.sleep != null ? `Tidurmu cuma ${r.sleep} jam.` : 'Sinyal pemulihanmu rendah hari ini.';
-      return { t: `Badanmu belum pulih, ${nama}`, s: `${t} ${doseLine(w,'lo')}` };
-    }
     if (kosong && r.score == null) {
-      return { t: hariIni ? `Belum ada catatan hari ini, ${nama}` : 'Hari ini kosong',
-               s: hariIni ? 'Isi satu angka saja dulu, berat badan atau jam tidur. Sisanya menyusul.'
+      return { t: hariIni ? `Belum cukup data pagi ini, ${nama}` : 'Hari ini kosong',
+               s: hariIni ? 'Masukkan jam tidur dulu supaya Areté punya dasar untuk membaca kondisimu.'
                           : 'Tidak ada yang tercatat di tanggal ini.' };
     }
+
     if (trained && dailyDone === 3) {
       return { t: `Hari yang lengkap, ${nama}`,
                s: `Sesi utama jalan dan daily track selesai semua. Inilah yang kalau diulang cukup sering akan kelihatan hasilnya di bulan ketiga.` };
     }
+
     if (trained) {
       return { t: `Sesi utama sudah beres, ${nama}`,
                s: dailyDone ? `Daily track baru ${dailyDone} dari 3. Sisanya sekitar lima menit, kerjakan sebelum tidur.`
                             : `Daily track belum disentuh. Abs, calf, dan hip totalnya 15 sampai 20 menit dan bisa dikerjakan di kamar.` };
     }
-    if (r.score != null && r.score >= 75) {
-      return { t: `Badanmu siap dipakai, ${nama}`, s: `${doseLine(w,'hi')} Daily track tetap dikerjakan malamnya.` };
+
+    if (r.score != null) {
+      const lvl = r.score >= 80 ? 'hi' : r.score >= 50 ? 'mid' : 'lo';
+
+      if (hariIni) {
+        return {
+          t: morningTitle(r.score, nama),
+          s: `Skor kesiapanmu ${r.score}. ${doseLine(w, lvl, r)}`
+        };
+      }
+
+      return {
+        t: `Skor kesiapanmu hari itu ${r.score}, ${nama}`,
+        s: doseLine(w, lvl, r)
+      };
     }
-    if (r.score != null && r.score >= 50) {
-      return { t: `Kondisimu wajar, ${nama}`, s: `${doseLine(w,'mid')} Jangan menambah dosis di luar yang sudah ditulis.` };
-    }
+
     return { t: `Belum ada latihan hari ini, ${nama}`,
-             s: `Rencananya ada di bawah. Kalau waktumu mepet, kerjakan daily track saja, itu yang paling tidak boleh bolong.` };
+             s: `Rencananya ada di bawah. Jalankan sesi utama sesuai plan, daily track bisa nanti malam.` };
   }
 
   /* ================= TARGET ================= */
