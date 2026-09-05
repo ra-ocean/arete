@@ -69,10 +69,11 @@ window.UI = (function () {
   function nav(name) {
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.dataset.view === name));
     document.querySelectorAll('.nav button[data-go]').forEach(b => {
-      if (b.dataset.go === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      const on = b.dataset.go === name;
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      b.closest('li').classList.toggle('cur', on);   /* dipakai nav versi mini */
     });
     window.scrollTo(0, 0);
-    showNav();
     try { localStorage.setItem('arete_view', name); } catch (e) {}
     document.dispatchEvent(new CustomEvent('viewchange', { detail: { view: name } }));
   }

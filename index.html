@@ -42,11 +42,14 @@
       <img id="avatar-img" alt="" hidden>
       <span id="avatar-fallback">R</span>
     </button>
-    <div class="head-txt">
-      <div class="greet" id="greet">Selamat pagi</div>
-      <div class="date" id="date">—</div>
+    <div class="daynav">
+      <button class="arrow" id="day-prev" type="button" aria-label="Hari sebelumnya">‹</button>
+      <button class="daybtn" id="day-open" type="button">
+        <span class="dl" id="day-label">—</span>
+        <span class="dn" id="day-num">—</span>
+      </button>
+      <button class="arrow" id="day-next" type="button" aria-label="Hari berikutnya">›</button>
     </div>
-    <div class="countdown" id="countdown" hidden><b id="cd-n">—</b><span>hari ke 10K</span></div>
   </header>
 
   <main>
@@ -54,28 +57,44 @@
   <!-- ============ BERANDA ============ -->
   <section class="view on" data-view="home">
 
-    <div class="card readiness" id="c-readiness">
-      <div class="card-head"><h2>Kesiapan hari ini</h2><button class="link" data-open-log="badan" type="button">Isi</button></div>
-      <div id="readiness-body"></div>
+    <div class="dayhead" id="dayhead">
+      <h1 class="verdict" id="verdict">—</h1>
+      <p class="verdict-sub" id="verdict-sub"></p>
     </div>
 
-    <div class="card" id="c-fit">
-      <div class="card-head"><h2>Body fit</h2><span class="src" id="fit-src"></span></div>
+    <div class="targets" id="targets" aria-label="Target">
+      <div class="tstrip" id="tstrip"></div>
+    </div>
+
+    <div class="hero" id="hero">
+      <div class="hero-top">
+        <div class="ring" id="ring"></div>
+        <div class="hero-txt">
+          <div class="hero-lab" id="ready-lab">Kesiapan</div>
+          <p id="ready-say"></p>
+        </div>
+      </div>
+      <div class="sleepbars" id="sleepbars"></div>
+      <div class="hero-mini" id="ready-mini"></div>
+    </div>
+
+    <button class="panelcard tappable" id="c-fit" type="button">
+      <div class="pc-head"><h2>Body fit</h2><span class="pc-hint">Ketuk untuk grafik penuh</span></div>
       <div id="fit-body"></div>
-    </div>
+    </button>
 
-    <div class="card" id="c-plan">
-      <div class="card-head"><h2>Rencana hari ini</h2><button class="link" id="plan-detail" type="button">Detail</button></div>
+    <div class="panelcard" id="c-plan">
+      <div class="pc-head"><h2>Latihan hari ini</h2><button class="link" id="plan-reset" type="button" hidden>Ulangi</button></div>
       <div id="plan-body"></div>
     </div>
 
-    <div class="card" id="c-lastrun">
-      <div class="card-head"><h2>Lari terakhir</h2><span class="src">intervals.icu</span></div>
+    <div class="panelcard" id="c-lastrun">
+      <div class="pc-head"><h2>Lari terakhir</h2><span class="pc-hint">intervals.icu</span></div>
       <div id="lastrun-body"></div>
     </div>
 
-    <div class="card insight" id="c-insight">
-      <div class="card-head"><h2>Insight hari ini</h2></div>
+    <div class="panelcard insight" id="c-insight">
+      <div class="pc-head"><h2>Insight</h2></div>
       <div id="insight-body"></div>
     </div>
 
@@ -300,10 +319,37 @@
  </div>
 </div>
 
+<!-- ============ SHEET: KALENDER ============ -->
+<div class="sheet" id="cal-sheet" hidden>
+ <div class="scrim" data-close-sheet="cal-sheet"></div>
+ <div class="sheet-body" role="dialog" aria-modal="true" aria-label="Pilih tanggal">
+  <div class="grab"></div>
+  <div class="sheet-head"><h2 id="cal-title">Pilih hari</h2><button class="link" data-close-sheet="cal-sheet" type="button">Tutup</button></div>
+  <div class="calnav">
+    <button class="arrow" id="cal-prev" type="button" aria-label="Bulan sebelumnya">‹</button>
+    <span id="cal-month"></span>
+    <button class="arrow" id="cal-next" type="button" aria-label="Bulan berikutnya">›</button>
+  </div>
+  <div class="calgrid" id="cal-grid"></div>
+  <p class="note-sm" id="cal-note"></p>
+ </div>
+</div>
+
+<!-- ============ GRAFIK PENUH (gaya Coros) ============ -->
+<div class="full" id="full-chart" hidden>
+  <div class="full-bar">
+    <div class="full-read" id="full-read"></div>
+    <button class="full-close" id="full-close" type="button" aria-label="Tutup">✕</button>
+  </div>
+  <div class="full-stage" id="full-stage"><div class="full-rot" id="full-rot"></div></div>
+  <div class="full-tabs" id="full-tabs"></div>
+</div>
+
 <script src="./assets/js/store.js"></script>
 <script src="./assets/js/theme.js"></script>
 <script src="./assets/js/splash.js"></script>
 <script src="./assets/js/plan.js"></script>
+<script src="./assets/js/targets.js"></script>
 <script src="./assets/js/insight.js"></script>
 <script src="./assets/js/api.js"></script>
 <script src="./assets/js/ui.js"></script>

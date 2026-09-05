@@ -1,6 +1,6 @@
 /* Areté service worker — cache-first for the shell, network-first for nothing else.
    Bump CACHE when any shell file changes, otherwise phones keep the old copy. */
-const CACHE = 'arete-v5';
+const CACHE = 'arete-v6';
 const SHELL = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const SHELL = [
   './assets/js/theme.js',
   './assets/js/splash.js',
   './assets/js/plan.js',
+  './assets/js/targets.js',
   './assets/js/insight.js',
   './assets/js/api.js',
   './assets/js/ui.js',
