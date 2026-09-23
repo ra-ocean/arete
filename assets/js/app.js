@@ -42,6 +42,9 @@
       return { key:k,
         sleep: l.sleep!=null ? l.sleep : (w.sleep_h ?? null),
         hrv:   l.hrv  !=null ? l.hrv   : (w.hrv ?? null),
+        /* jenis HRV ikut dibawa: SDNN dan rMSSD bukan besaran yang sama, jadi
+           tidak boleh dibandingkan satu sama lain sebagai baseline */
+        hrv_kind: l.hrv!=null ? 'manual' : (w.hrv_kind ?? null),
         rhr:   l.rhr  !=null ? l.rhr   : (w.rhr ?? null) };
     });
   }
@@ -58,7 +61,11 @@
       return back ? back[f] : null;
     };
     const sleep = pick('sleep'), hrv = pick('hrv'), rhr = pick('rhr');
-    const hrvHist = hist.map(r=>r.hrv).filter(v=>v!=null);
+    /* Baseline HRV hanya boleh dibangun dari jenis yang sama. Kalau sumber
+       datanya pernah berpindah dari SDNN ke rMSSD, riwayat lama tidak dipakai. */
+    const todayKind = (rec.find(r => r.key === day) || {}).hrv_kind || null;
+    const hrvHist = hist.filter(r => r.hrv != null && (!todayKind || !r.hrv_kind || r.hrv_kind === todayKind))
+                        .map(r => r.hrv);
     const rhrHist = hist.map(r=>r.rhr).filter(v=>v!=null);
     /* Di bawah 5 catatan, baseline-nya adalah angka itu sendiri — perbandingan
        jadi selalu "normal" dan skornya bohong. Komponen itu dilewati dulu. */
@@ -315,7 +322,7 @@
     };
   }
 
-  /* ================= HERO KESIAPAN ================= */
+  /* ================= HERO SKOR PEMULIHAN ================= */
   /* Narasi kesiapan. Tugasnya cuma dua: dari mana angkanya, dan apa yang
      angka itu ceritakan yang tidak kelihatan dari satu hari saja. Instruksi
      latihan sudah ada di kalimat coach di atas, jadi tidak diulang di sini. */
@@ -384,13 +391,29 @@
       : `<svg viewBox="0 0 88 88"><circle class="bg" cx="44" cy="44" r="38"/>
          <circle class="fg" cx="44" cy="44" r="38" stroke="${scoreColor(r.score)}"
            stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-r.score/100)).toFixed(1)}"/></svg>
-         <b>${r.score}</b><small>siap</small>`;
+         <b>${r.score}</b><small>skor</small>`;
 
-    const lab = r.score==null ? 'Kesiapan belum terbaca'
-      : r.score>=80 ? 'Siap' : r.score>=65 ? 'Cukup siap' : r.score>=50 ? 'Hati-hati' : 'Pulihkan dulu';
+    /* Label harus menyebut sinyal yang BENAR-BENAR dipakai hari itu. Ring besar
+       bertuliskan "Kesiapan" padahal isinya cuma lama tidur akan membuat angka
+       ini lebih dipercaya daripada yang pantas. */
+    const dipakai = [];
+    if (r.sleep != null) dipakai.push('tidur');
+    if (r.hrv != null && !r.need.some(n=>n.startsWith('HRV'))) dipakai.push('HRV');
+    if (r.rhr != null && !r.need.some(n=>n.startsWith('resting'))) dipakai.push('resting HR');
+    const daftar = dipakai.length === 0 ? ''
+      : dipakai.length === 1 ? dipakai[0]
+      : dipakai.slice(0,-1).join(', ') + ' dan ' + dipakai[dipakai.length-1];
+
+    const lab = r.score==null ? 'Belum terbaca'
+      : dipakai.length >= 3 ? 'Kesiapan'
+      : dipakai.length === 1 && dipakai[0] === 'tidur' ? 'Skor tidur'
+      : 'Skor ' + daftar;
     $('#ready-lab').textContent = lab;
-    $('#ready-onel').textContent = r.score==null ? 'Butuh tidur, HRV, dan resting HR.'
-      : `Dihitung dari ${3 - r.need.length} dari 3 sinyal pemulihan.`;
+    $('#ready-onel').textContent = r.score==null
+      ? 'Butuh tidur, HRV, atau resting HR.'
+      : dipakai.length >= 3
+        ? 'Dari tidur, HRV, dan resting HR.'
+        : `Hanya dari ${daftar}. ${r.need.filter(n=>n!=='tidur').join(' dan ')} belum ikut, jadi ini belum gambaran pemulihan utuh.`;
     $('#ready-say').querySelector('.cb-txt').innerHTML =
       readinessNarrative(r).map(p=>`<p>${p}</p>`).join('');
 
@@ -408,6 +431,126 @@
     }
     const mini=(k,v,u)=>`<div><div class="k">${k}</div><div class="v${v==null?' none':''}">${v==null?'belum':v}${v!=null&&u?`<i>${u}</i>`:''}</div></div>`;
     $('#ready-mini').innerHTML = mini('Tidur',r.sleep,'j')+mini('HRV',r.hrv,'ms')+mini('Resting HR',r.rhr,'bpm');
+  }
+
+  /* ================= PETA BEBAN OTOT =================
+     Satu-satunya tempat di mana beban lari dari intervals.icu dan beban
+     angkatan dari catatan sendiri dibaca bersama. Coach tidak melihat beban
+     lari, intervals.icu tidak melihat sesi gym, Hevy tidak melihat keduanya. */
+  let musSrc = 'all', musSel = null, musData = null, musMounted = false;
+
+  /* Catatan angkatan. Tab Latihan belum ada, jadi masih kosong.
+     Bentuknya sudah final supaya nanti cukup diisi, bukan diubah. */
+  function liftSessions() { return []; }
+
+  const musAgo = k => Math.round((UI.parse(sel) - UI.parse(k)) / 86400000);
+
+  /* Satu kalimat pembuka: otot mana yang teratas dan apa pemicunya. */
+  function musRead(d) {
+    if (d.thin) return `Peta masih menghangat. Baru ${d.days} hari data lari terbaca, dan acuan pribadi per otot butuh sekitar 14 hari. Urutannya sudah benar, angkanya belum stabil.`;
+    const top = d.reg.slice().sort((a, b) => b.total - a.total);
+    const a = top[0], b = top[1];
+    if (!a || a.total < 12) return 'Semua otot di bawah beban ringan. Tidak ada yang sedang menumpuk.';
+    const s = (a.srcList || [])[0];
+    let kal = `${a.label} dan ${b.label} yang paling terpakai sekarang.`;
+    if (s) kal += ` Penyumbang terbesarnya ${s.label.toLowerCase()}.`;
+    const dv = Muscle.devText(a.dev);
+    if (dv) kal += ' ' + dv;
+    return kal;
+  }
+
+  function renderMuscle() {
+    const card = $('#c-muscle'); if (!card) return;
+    const acts = (activities && activities.ok) ? activities.data : [];
+    const lifts = liftSessions();
+    if (!acts.length && !lifts.length) {
+      $('#mus-src').hidden = true;
+      $('#mus-read').innerHTML = '';
+      $('#mus-rank').innerHTML = connectBlock(activities && activities.reason, true);
+      $('#mus-svg').closest('.mmap').hidden = true;
+      return;
+    }
+    $('#mus-src').hidden = false;
+    $('#mus-svg').closest('.mmap').hidden = false;
+
+    musData = Muscle.build(acts, lifts, sel);
+    if (!musMounted) {
+      Muscle.mount($('#mus-svg'));
+      $$('#mus-svg .zone').forEach(el => {
+        el.addEventListener('click', () => openMus(el.dataset.r));
+        el.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMus(el.dataset.r); } });
+      });
+      musMounted = true;
+    }
+
+    const adaLift = musData.reg.some(r => r.lift > 0);
+    const SRC = [['all', 'Semua'], ['run', 'Lari'], ['lift', 'Angkatan']];
+    $('#mus-src').innerHTML = SRC.map(([k, l]) => {
+      const mati = k === 'lift' && !adaLift;
+      return `<button data-src="${k}" aria-pressed="${musSrc === k}"${mati ? ' disabled style="opacity:.45"' : ''} type="button">${l}</button>`;
+    }).join('');
+    $$('#mus-src button').forEach(b => b.onclick = () => { musSrc = b.dataset.src; renderMuscle(); });
+
+    $('#mus-days').textContent = musData.days + ' hari data';
+    $('#mus-read').textContent = musRead(musData);
+
+    const val = r => musSrc === 'run' ? r.run : musSrc === 'lift' ? r.lift : r.total;
+    Muscle.paint($('#mus-svg'), musData, musSrc, musSel);
+
+    const list = musData.reg.slice().sort((a, b) => val(b) - val(a)).slice(0, 6);
+    $('#mus-rank').innerHTML = `<h3>Enam teratas</h3>` + list.map(r => {
+      const v = val(r);
+      return `<button class="mrow" data-mus="${r.id}" type="button">
+        <span class="n">${r.label}</span>
+        <span class="mtrack"><i class="mfill" style="width:${Math.max(4, v)}%;background:${Muscle.col(v)}"></i></span>
+        <span class="v">${v}</span></button>`;
+    }).join('');
+    $$('#mus-rank .mrow').forEach(b => b.onclick = () => openMus(b.dataset.mus));
+  }
+
+  function openMus(id) {
+    if (!musData) return;
+    const r = musData.byId(id); if (!r) return;
+    musSel = id;
+    const v = musSrc === 'run' ? r.run : musSrc === 'lift' ? r.lift : r.total;
+    const c = Muscle.col(v);
+    const bagi = (r.run + r.lift) ? Math.round(r.run / (r.run + r.lift) * 100) : null;
+    const dv = Muscle.devText(r.dev);
+
+    $('#mus-sheet-title').textContent = r.label;
+    $('#mus-sheet-body').innerHTML = `
+      <div class="msh-top">
+        <div>
+          <span class="msh-stat" style="color:${c};background:color-mix(in srgb, ${c} 16%, transparent)">${Muscle.statusOf(v)}</span>
+        </div>
+        <div class="big" style="color:${c}">${v}</div>
+      </div>
+      ${dv ? `<p class="msh-dev">${dv}</p>` : ''}
+
+      <h4>Rincian otot</h4>
+      ${r.subs.map(sub => sub[1] == null
+        ? `<div class="msub"><span>${sub[0]}<em class="tg">${sub[2]}</em></span><span></span><span class="v">&mdash;</span></div>`
+        : (() => { const sv = Math.round(v * sub[1]);
+            return `<div class="msub"><span>${sub[0]}</span>
+              <span class="mtrack"><i class="mfill" style="width:${Math.max(4, sv)}%;background:${Muscle.col(sv)}"></i></span>
+              <span class="v">${sv}</span></div>`; })()).join('')}
+      <p class="mshnote">Peta mewarnai ${Muscle.shapeCount(r.id)} bentuk untuk wilayah ini. Nama di atas adalah rincian anatomisnya, dibagi menurut proporsi beban yang biasa ditanggung masing-masing.</p>
+
+      <h4>Dari mana bebannya</h4>
+      ${r.srcList.length
+        ? r.srcList.map(s => `<div class="msrcrow"><span style="color:var(--fg)">${s.label}<br><span class="kind">${s.kind === 'run' ? 'lari' : 'angkatan'} &middot; ${s.ago === 0 ? 'hari ini' : s.ago + ' hari lalu'}</span></span>
+            <span>+${s.v}</span></div>`).join('')
+        : `<div class="msrcrow"><span>Tidak ada beban berarti dalam 21 hari terakhir.</span><span></span></div>`}
+
+      ${bagi != null && (r.run + r.lift) > 0 ? `<h4>Bagi hasil sumber</h4>
+        <div class="msrcrow"><span style="color:var(--fg)">Lari</span><span>${bagi}%</span></div>
+        <div class="msrcrow"><span style="color:var(--fg)">Angkatan</span><span>${100 - bagi}%</span></div>` : ''}
+
+      <h4>Catatan</h4>
+      <div class="madvice">${r.advice}</div>`;
+    UI.openSheet('mus-sheet');
+    Muscle.paint($('#mus-svg'), musData, musSrc, musSel);
   }
 
   /* ================= TRAINING STATUS ================= */
@@ -1381,7 +1524,7 @@
     renderDayNav();
     const vd = verdict();
     $('#verdict').textContent = vd.t; $('#verdict-sub').textContent = vd.s;
-    renderTargets(); renderHero(); renderFit(); renderPlan();
+    renderTargets(); renderMuscle(); renderHero(); renderFit(); renderPlan();
     renderLastRun(); renderInsight(); renderBody(); renderPerf(); renderProfile();
     if (profile.photo) { $('#avatar-img').src=profile.photo; $('#avatar-img').hidden=false; $('#avatar-fallback').hidden=true; }
     else { $('#avatar-img').hidden=true; $('#avatar-fallback').hidden=false; $('#avatar-fallback').textContent=(profile.name||'R')[0].toUpperCase(); }

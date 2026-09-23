@@ -17,10 +17,22 @@
 const BASE = 'https://intervals.icu/api/v1';
 
 /* Nama metrik Health Auto Export -> field wellness intervals.icu.
-   Health Auto Export memakai snake_case dan bisa mengirim `qty` atau `Avg`. */
+   Health Auto Export memakai snake_case dan bisa mengirim `qty` atau `Avg`.
+
+   PENTING soal HRV. Apple Health menyimpan DUA metrik yang sama sekali berbeda:
+   SDNN (klasik, dipakai sejak Apple Watch generasi awal) dan rMSSD (baru).
+   intervals.icu juga punya dua kolom terpisah, `hrvSDNN` dan `hrv`.
+   Angka 35 ms SDNN dan 35 ms rMSSD BUKAN hal yang sama, jadi salah kolom berarti
+   grafiknya membandingkan dua besaran berbeda tanpa ada yang sadar. Karena itu
+   masing-masing dipetakan ke kolomnya sendiri, tidak digabung. */
 const MAP = {
-  heart_rate_variability: 'hrv',
+  heart_rate_variability: 'hrvSDNN',
+  heart_rate_variability_sdnn: 'hrvSDNN',
+  heart_rate_variability_rmssd: 'hrv',
+  heart_rate_variability_r_mssd: 'hrv',
+  recovery_hrv: 'hrv',
   resting_heart_rate: 'restingHR',
+  heart_rate: null,                       /* dikenali tapi sengaja diabaikan */
   respiratory_rate: 'respiration',
   blood_oxygen_saturation: 'spO2',
   weight_body_mass: 'weight',
@@ -71,7 +83,8 @@ export default async function handler(req, res) {
       seen.push('sleep_analysis');
       continue;
     }
-    if (!field) { skipped.push(m.name); continue; }
+    if (field === null) { seen.push(m.name + ' (diabaikan)'); continue; }
+    if (!field) { skipped.push({ name: m.name, contoh: (m.data || [])[0] || null }); continue; }
     for (const p of (m.data || [])) {
       const d = dayKey(p.date); const v = val(p);
       if (!d || v == null) continue;
@@ -84,7 +97,7 @@ export default async function handler(req, res) {
   const dates = Object.keys(byDate).sort();
   if (!dates.length) {
     return res.status(200).json({ ok: true, written: 0, seen, skipped,
-      message: 'Payload diterima tapi tidak ada metrik yang dikenali. Kirim daftar `skipped` ini kalau ada nama metrik yang seharusnya masuk.' });
+      message: 'Payload diterima tapi tidak ada metrik yang dikenali. Kirim isi `skipped` ini ke Claude supaya peta metriknya dilengkapi.' });
   }
 
   const auth = 'Basic ' + Buffer.from('API_KEY:' + key).toString('base64');

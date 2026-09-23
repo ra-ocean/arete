@@ -73,11 +73,23 @@
       <div class="tstrip" id="tstrip"></div>
     </div>
 
+    <div class="panelcard" id="c-muscle">
+      <div class="pc-head"><h2>Beban otot</h2><span class="pc-hint" id="mus-days"></span></div>
+      <div class="msrc" id="mus-src"></div>
+      <p class="msh-dev" id="mus-read" style="margin:0 0 12px"></p>
+      <div class="mmap"><svg id="mus-svg" role="img" aria-label="Peta beban otot, tampak depan dan belakang"></svg></div>
+      <div class="mleg" aria-hidden="true">
+        <i style="background:var(--l0)"></i><i style="background:var(--l1)"></i><i style="background:var(--l2)"></i><i style="background:var(--l3)"></i><i style="background:var(--l4)"></i>
+      </div>
+      <div class="mlegtxt" aria-hidden="true"><span>Segar</span><span>Terpakai berat</span></div>
+      <div class="mrank" id="mus-rank"></div>
+    </div>
+
     <div class="hero" id="hero">
       <div class="hero-top">
         <div class="ring" id="ring"></div>
         <div class="hero-txt">
-          <div class="hero-lab" id="ready-lab">Kesiapan</div>
+          <div class="hero-lab" id="ready-lab">—</div>
           <div class="hero-onel" id="ready-onel"></div>
         </div>
       </div>
@@ -374,6 +386,15 @@
 </div>
 
 <!-- ============ SHEET: KALENDER ============ -->
+<div class="sheet msh" id="mus-sheet" hidden>
+ <div class="scrim" data-close-sheet="mus-sheet"></div>
+ <div class="sheet-body" role="dialog" aria-modal="true" aria-label="Rincian beban otot">
+  <div class="grab"></div>
+  <div class="sheet-head"><h2 id="mus-sheet-title">Otot</h2><button class="link" data-close-sheet="mus-sheet" type="button">Tutup</button></div>
+  <div id="mus-sheet-body"></div>
+ </div>
+</div>
+
 <div class="sheet" id="cal-sheet" hidden>
  <div class="scrim" data-close-sheet="cal-sheet"></div>
  <div class="sheet-body" role="dialog" aria-modal="true" aria-label="Pilih tanggal">
@@ -417,6 +438,7 @@
 <script src="./assets/js/insight.js"></script>
 <script src="./assets/js/api.js"></script>
 <script src="./assets/js/ui.js"></script>
+<script src="./assets/js/muscle.js"></script>
 <script src="./assets/js/app.js"></script>
 </body>
 </html>

@@ -726,3 +726,71 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .smetrics .gd.mid{color:var(--mid);background:var(--warn-soft)}
 .smetrics .gd.low{color:var(--low);background:var(--accent-soft)}
 .row.three{grid-template-columns:1fr 1fr 1fr}
+
+/* ============================================================
+   PETA BEBAN OTOT
+   Semua kelas diberi awalan m supaya tidak bertabrakan dengan
+   .row, .track, dan .fill yang sudah dipakai daily-track.
+   ============================================================ */
+:root{
+  --l0:#DDE6DE; --l1:#9FCBA9; --l2:#E3C275; --l3:#DF9A63; --l4:#C8523E;
+  --seam:rgba(26,18,17,.16);
+}
+[data-mode="night"]{
+  --l0:#2A2E2B; --l1:#4E7C5B; --l2:#8A6F2F; --l3:#A4623B; --l4:#B4483A;
+  --seam:rgba(255,255,255,.13);
+}
+
+.mmap{margin:2px -4px 0}
+.mmap svg{width:100%;height:auto;display:block}
+.mmap .sil{fill:var(--sunk);stroke:var(--rule-2);stroke-width:1.6}
+.mmap .zone{stroke:var(--bg);stroke-width:1.5;cursor:pointer;
+  transition:fill .28s ease,stroke .18s ease}
+.mmap .zone:hover{stroke:var(--fg);stroke-width:2.4}
+.mmap .zone:focus-visible{outline:none;stroke:var(--accent);stroke-width:3}
+.mmap .zone.sel{stroke:var(--fg);stroke-width:3}
+.mmap .fib{pointer-events:none;opacity:.3}
+.mmap .vlab{font:600 22px 'Poppins',sans-serif;letter-spacing:.16em;
+  fill:var(--fg-3);text-anchor:middle}
+
+.mleg{display:flex;align-items:center;gap:6px;margin:14px 0 0}
+.mleg i{flex:1;height:6px;border-radius:3px}
+.mlegtxt{display:flex;justify-content:space-between;margin:5px 0 0;
+  font-size:10.5px;color:var(--fg-3);letter-spacing:.04em}
+
+.msrc{display:flex;gap:6px;margin:0 0 12px}
+.msrc button{flex:1;background:var(--sunk);border:1px solid transparent;color:var(--fg-2);
+  border-radius:10px;padding:9px 6px;font:500 12px 'Poppins',sans-serif;cursor:pointer}
+.msrc button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+
+.mrank{margin:16px 0 0}
+.mrank h3{font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--fg-3);margin:0 0 4px}
+.mrow{display:grid;grid-template-columns:1fr 84px 30px;gap:10px;align-items:center;
+  width:100%;background:none;border:0;border-top:1px solid var(--rule);
+  padding:10px 0;cursor:pointer;color:inherit;font:inherit;text-align:left}
+.mrow .n{font-size:13.5px;font-weight:500;color:var(--fg)}
+.mtrack{height:6px;border-radius:3px;background:var(--sunk);overflow:hidden}
+.mfill{display:block;height:100%;border-radius:3px}
+.mrow .v{font:600 13px 'Poppins',sans-serif;text-align:right;color:var(--fg-2);
+  font-variant-numeric:tabular-nums}
+
+.msh-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.msh-top h3{font-size:19px;font-weight:600;letter-spacing:-.015em;margin:0}
+.msh-top .big{font:600 30px 'Poppins',sans-serif;line-height:1;font-variant-numeric:tabular-nums}
+.msh-stat{display:inline-block;margin:8px 0 0;font:600 10px 'Poppins',sans-serif;
+  letter-spacing:.11em;text-transform:uppercase;padding:5px 9px;border-radius:999px}
+.msh-dev{margin:10px 0 0;font-size:13px;line-height:1.6;color:var(--fg-2)}
+.msh h4{font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--fg-3);margin:20px 0 2px}
+.msub{display:grid;grid-template-columns:1fr 70px 30px;gap:10px;align-items:center;
+  padding:8px 0;border-top:1px solid var(--rule);font-size:13px;color:var(--fg-2)}
+.msub .v{font:600 12.5px 'Poppins',sans-serif;text-align:right;font-variant-numeric:tabular-nums}
+.msh .tg{font-style:normal;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fg-3);background:var(--sunk);border-radius:5px;padding:2px 5px;margin-left:5px}
+.msrcrow{display:flex;justify-content:space-between;gap:10px;padding:8px 0;
+  border-top:1px solid var(--rule);font-size:13px;color:var(--fg-3)}
+.msrcrow .kind{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-3)}
+.mshnote{margin:9px 0 0;font-size:11.5px;line-height:1.6;color:var(--fg-3)}
+.madvice{background:var(--sunk);border-radius:12px;padding:13px 14px;margin:6px 0 0;
+  font-size:13.5px;line-height:1.65;color:var(--fg-2)}
