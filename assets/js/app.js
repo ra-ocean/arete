@@ -1094,7 +1094,9 @@
     return v;
   }
   async function saveLog(v, msgEl) {
+    v.updated_at = v.updated_at || new Date().toISOString();
     await Store.put('logs', sel, v);
+    if (window.Sync) Sync.dorong();
     logs = logs.filter(l=>l.key!==sel).concat([{key:sel,value:v}]).sort((a,b)=>a.key<b.key?-1:1);
     renderAll();
     if (msgEl) { msgEl.textContent='Tersimpan '+new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
@@ -1211,7 +1213,7 @@
     $('#save').onclick = async () => { await saveLog(readSheet(), $('#saved')); };
     $('#p-save').onclick = async () => {
       profile.name = $('#p-name').value.trim() || 'Rausyan';
-      await Store.put('meta','profile',profile); renderAll(); flash('#p-msg','Profil disimpan.');
+      await Store.put('meta','profile',profile); if (window.Sync) Sync.tandaiSetting(); renderAll(); flash('#p-msg','Profil disimpan.');
     };
     $('#p-photo').onchange = async e => {
       const f=e.target.files[0]; if(!f) return;
@@ -1226,7 +1228,7 @@
       if ($('#g-weight')) goals.weight_target = num($('#g-weight').value) ?? goals.weight_target;
       goals.bf_target_pct = num($('#g-bf').value) ?? goals.bf_target_pct;
       goals.tdee_low = num($('#g-tdee').value) ?? goals.tdee_low;
-      await Store.put('meta','goals',goals); renderAll(); flash('#g-msg','Target disimpan.');
+      await Store.put('meta','goals',goals); if (window.Sync) Sync.tandaiSetting(); renderAll(); flash('#g-msg','Sasaran disimpan.');
     };
     $('#conn-refresh').onclick = async () => { await Api.clearCache(); await pull(); renderAll(); };
     $('#export').onclick = async () => {
@@ -1284,7 +1286,19 @@
     if (window.TRAIN) await TRAIN.init({ Store, UI, $, $$, onChange: renderAll });
     if (sel > today) sel = today;
     renderAll();
+    if (window.Sync) Sync.init({ Store, UI, $, $$, onData: reloadLocal });
   }
+  /* Dipanggil sinkronisasi sesudah ada baris yang turun dari awan. */
+  async function reloadLocal() {
+    const g = await Store.get('meta','goals');   if (g) goals = Object.assign({}, window.DEFAULT_GOALS, g);
+    const pr = await Store.get('meta','profile'); if (pr) profile = Object.assign(profile, pr);
+    const tg = await Store.get('meta','targets'); if (tg) targets = tg;
+    logs = (await Store.all('logs')).sort((a,b)=>a.key<b.key?-1:1);
+    photos = await Store.all('photos');
+    if (window.TRAIN) await TRAIN.load();
+    renderAll();
+  }
+
   async function pull() { loadedDays = 400; [wellness, activities] = await Promise.all([Api.wellness(400), Api.activities(400)]); }
 
   (async function boot() {

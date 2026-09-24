@@ -281,6 +281,48 @@ window.TRAIN = (function () {
     if (!st.abs) st.abs = {};
   }
   function persist() { return D.Store.put('meta', 'train', st); }
+  const cap = () => new Date().toISOString();
+
+  /* ============================================================
+     BENTUK BARIS UNTUK SINKRONISASI
+     Sesi disimpan per hari per jenis, bukan sebagai satu gumpalan besar.
+     Kalau digumpalkan, satu hari yang berbeda di dua alat akan membuat
+     seluruh riwayat menang atau kalah sekaligus.
+     ============================================================ */
+  function exportRows() {
+    const out = [];
+    st.sessions.forEach(x => out.push({ day:x.key, kind:'arete', payload:x, updated_at:x.u || '1970-01-01T00:00:00Z' }));
+    st.coach.forEach(x  => out.push({ day:x.key, kind:'coach', payload:x, updated_at:x.u || '1970-01-01T00:00:00Z' }));
+    Object.keys(st.abs).forEach(k => {
+      const a = st.abs[k];
+      if ((a.items || []).length) out.push({ day:k, kind:'abs', payload:a, updated_at:a.u || '1970-01-01T00:00:00Z' });
+    });
+    return out;
+  }
+  async function importRows(rows) {
+    rows.forEach(r => {
+      const p = Object.assign({}, r.payload, { u:r.updated_at });
+      if (r.kind === 'arete') {
+        p.key = r.day;
+        const i = st.sessions.findIndex(x => x.key === r.day);
+        if (i >= 0) st.sessions[i] = p; else st.sessions.push(p);
+      } else if (r.kind === 'coach') {
+        p.key = r.day; p.coach = true;
+        const i = st.coach.findIndex(x => x.key === r.day);
+        if (i >= 0) st.coach[i] = p; else st.coach.push(p);
+      } else if (r.kind === 'abs') {
+        st.abs[r.day] = p;
+      }
+    });
+    st.sessions.sort((a, b) => a.key < b.key ? -1 : 1);
+    await persist();
+  }
+  const exportSettings = () => ({ gear:st.gear, mine:st.mine });
+  async function importSettings(d) {
+    if (d && d.gear) st.gear = d.gear;
+    if (d && d.mine) st.mine = Object.assign({}, st.mine, d.mine);
+    await persist();
+  }
 
   /* ============================================================
      UTANG POLA GERAK
@@ -1106,23 +1148,24 @@ window.TRAIN = (function () {
     });
     $$('#c-coach [data-del]').forEach(b => b.onclick = async () => {
       const c = coachOf(sel); if (!c) return;
-      c.items.splice(+b.dataset.del, 1); edit = null;
+      c.items.splice(+b.dataset.del, 1); edit = null; c.u = cap();
       if (!c.items.length) st.coach = st.coach.filter(x => x !== c);
       await persist(); refresh();
     });
     $$('#c-coach [data-ci]').forEach(inp => inp.oninput = async () => {
       const c = coachOf(sel); if (!c) return;
       c.items[+inp.dataset.ci][inp.dataset.k] = +inp.value || 0;
-      await persist();
+      c.u = cap(); await persist();
     });
     $$('#c-coach [data-ti]').forEach(b => b.onclick = async () => {
       const c = coachOf(sel); if (!c) return;
-      c.items[+b.dataset.ti].tier = b.dataset.tv; await persist(); refresh();
+      c.items[+b.dataset.ti].tier = b.dataset.tv; c.u = cap(); await persist(); refresh();
     });
     $$('#c-coach [data-add]').forEach(b => b.onclick = async () => {
       const id = b.dataset.add, e = byId(id);
       let c = coachOf(sel);
       if (!c) { c = { key:sel, coach:true, items:[] }; st.coach.push(c); }
+      c.u = cap();
       if (c.items.some(x => x.id === id)) return;
       const d = (e.def || [[0, 10]])[(e.def || [[0, 10]]).length - 1];
       c.items.push({ id:id, w: e.kind === 'load' ? (d[0] || 0) : 0,
@@ -1159,15 +1202,17 @@ window.TRAIN = (function () {
         cue:[['Catatan','Gerakan yang kamu tambahkan sendiri. Cue belum diisi.']], alt:[] };
       let c = coachOf(sel);
       if (!c) { c = { key:sel, coach:true, items:[] }; st.coach.push(c); }
+      c.u = cap();
       c.items.push({ id:id, w:0, r: d.tier === 'ringan' ? 30 : 10, setsN:3, tier:d.tier });
       edit = c.items.length - 1; draft = null; cq = '';
       await persist(); refresh();
       if (D.onChange) D.onChange();
+      if (window.Sync) Sync.dorong();
     });
 
     /* perut harian */
     $$('#abs-mode button').forEach(b => b.onclick = async () => {
-      const a = absToday(sel); a.mode = b.dataset.am; st.abs[sel] = a;
+      const a = absToday(sel); a.mode = b.dataset.am; a.u = cap(); st.abs[sel] = a;
       await persist(); $('#c-abs').innerHTML = absCard(); wire();
     });
     const av = $('#abs-save');
@@ -1175,11 +1220,12 @@ window.TRAIN = (function () {
       const a = absToday(sel);
       const items = readRows('#abs-slots');
       if (!items.length) { flash('Tandai centang minimal satu set dulu. Yang belum dicentang tidak dihitung.', '#abs-msg'); return; }
-      a.items = items; st.abs[sel] = a;
+      a.items = items; a.u = cap(); st.abs[sel] = a;
       await persist();
       /* Gambar ulang dulu, baru pesannya ditulis. Kalau dibalik, pesannya
          ikut terhapus karena kartu perut digambar ulang seluruhnya. */
       if (D.onChange) D.onChange();
+      if (window.Sync) Sync.dorong();
       flash(`Tersimpan. ${items.length} gerakan perut, ${items.reduce((x, y) => x + y.sets.length, 0)} set. Pola Core ikut direset.`, '#abs-msg');
     };
 
@@ -1189,13 +1235,14 @@ window.TRAIN = (function () {
       const items = readRows('#tr-slots');
       if (!items.length) { flash('Tandai centang minimal satu set dulu. Yang belum dicentang tidak dihitung.'); return; }
       const lama = st.sessions.findIndex(x => x.key === sel);
-      const rec = { key:sel, done:true, items:items };
+      const rec = { key:sel, done:true, items:items, u:cap() };
       if (lama >= 0) st.sessions[lama] = rec; else st.sessions.push(rec);
       st.sessions.sort((a, b) => a.key < b.key ? -1 : 1);
       await persist();
       flash(`Tersimpan. ${items.length} gerakan, ${items.reduce((a, x) => a + x.sets.length, 0)} set. Hitungan utang pola dan peta beban otot sudah ikut berubah.`);
       swap = {};
       if (D.onChange) D.onChange();
+      if (window.Sync) Sync.dorong();
     };
     const rs = $('#tr-rest-skip'), ra = $('#tr-rest-add');
     if (rs) rs.onclick = () => { clearInterval(rh); $('#tr-rest').classList.remove('on'); };
@@ -1234,7 +1281,9 @@ window.TRAIN = (function () {
       if (off) delete st.gear[g]; else st.gear[g] = false;
       b.setAttribute('aria-pressed', String(!off));
       await persist();
+      if (window.Sync) Sync.tandaiSetting();
       if (D.onChange) D.onChange();
+      if (window.Sync) Sync.dorong();
     });
   }
   function renderLib(el) {
@@ -1259,6 +1308,7 @@ window.TRAIN = (function () {
   }
 
   return { init, load, render, sessionOf, allSessions, liftSessions, topDebt, debt, todayPatterns,
+           exportRows, importRows, exportSettings, importSettings,
            renderGear, renderLib, PATS, EXTRA, GEAR, EX,
            /* dipakai uji otomatis, bukan oleh tampilan */
            _compose: compose, _holds: holds, _state: () => st, _hist: hist };
