@@ -101,39 +101,49 @@
      skor pemulihan. Recovery sudah dicabut: Zepp lebih baik untuk tidur,
      dan skor kesiapan yang cuma dari durasi tidur menyesatkan. */
   function verdict() {
+    /* Judulnya menyebut satu hal konkret yang berlaku hari ini, bukan kata
+       suasana. "Kondisimu jalan" sudah dibuang karena tidak mengatakan apa apa. */
     const nama = profile.name || 'Rausyan';
     const hariIni = sel === today;
     const m = musData;
-    const w = fitRows() ? fitRows()[fitRows().length - 1] : null;
-    const sesi = TRAIN.sessionOf(sel);
-    const sudah = sesi && sesi.done;
+    const rows = fitRows();
+    const w = rows && rows.length ? rows[rows.length-1] : null;
+    const sesi = window.TRAIN ? TRAIN.sessionOf(sel) : null;
 
     if (!m || !m.reg) {
-      return { t: `Selamat datang, ${nama}`,
+      return { t: `Halo, ${nama}`,
                s: 'Sambungkan intervals.icu di Profil, lalu peta beban otot dan penyusun sesi mulai jalan.' };
     }
     const top = m.reg.slice().sort((a, b) => b.total - a.total)[0];
-    const berat = m.reg.filter(r => r.total >= 70).map(r => r.label);
-    const debt = TRAIN.topDebt(sel, 1)[0];
-    const lama = d => d.never ? 'belum pernah tercatat' : d.d + ' hari tanpa beban nyata';
+    const berat = m.reg.filter(r => r.total >= 70);
+    const debt = window.TRAIN ? TRAIN.topDebt(sel, 1)[0] : null;
+    const pola = window.TRAIN ? TRAIN.todayPatterns(sel, m) : [];
+    const utama = pola.slice(0, 2);
 
-    if (sudah) {
-      return { t: `Sesi hari ini beres, ${nama}`,
-               s: debt ? `Pola yang masih paling lama menganggur sekarang ${debt.p}, ${lama(debt)}. Itu yang diambil sesi berikutnya.`
-                       : 'Sepuluh pola wajib sudah tersentuh semua minggu ini.' };
+    if (sesi && sesi.done) {
+      const n = (sesi.items || []).length;
+      return { t: hariIni ? 'Sesi hari ini sudah kamu tutup' : 'Sesi hari itu sudah ditutup',
+               s: `${n} gerakan tercatat. ` + (debt
+                 ? `Yang paling lama menganggur sekarang ${debt.p}, dan itu yang diambil sesi berikutnya.`
+                 : 'Sepuluh pola wajib sudah tersentuh semua minggu ini.') };
     }
     if (berat.length >= 3) {
-      return { t: hariIni ? `Kakimu sedang menanggung banyak, ${nama}` : 'Beban otot sedang tinggi',
-               s: `${berat.slice(0, 3).join(', ')} semuanya di atas 70. Sesi hari ini otomatis menghindari pola yang memakai otot itu.` };
+      return { t: 'Kakimu masih menanggung sisa lari',
+               s: `${berat.slice(0, 3).map(r => r.label).join(', ')} semuanya di atas 70. Sesi hari ini otomatis menghindari gerakan yang memakai otot itu.` };
+    }
+    if (utama.length) {
+      return { t: hariIni ? `Hari ini giliran ${utama.join(' dan ')}` : `Waktu itu giliran ${utama.join(' dan ')}`,
+               s: debt && debt.p === utama[0]
+                 ? `${debt.p} yang paling lama tidak dapat beban nyata, jadi itu yang diambil.`
+                 : `Dipilih dari pola yang paling lama menganggur dan otot yang paling siap dipakai.` };
     }
     if (top && top.total < 25) {
-      return { t: hariIni ? `Badanmu segar, ${nama}` : 'Beban otot rendah',
-               s: debt ? `Otot terberat cuma di ${top.total}. Hari yang tepat untuk ${debt.p}, ${lama(debt)}.`
-                       : `Otot terberat cuma di ${top.total}. Tidak ada yang perlu ditahan hari ini.` };
+      return { t: hariIni ? 'Badanmu paling segar minggu ini' : 'Beban otot sedang rendah',
+               s: `Otot terberat cuma di ${top.total}. Hari yang tepat untuk sesi berat.` };
     }
-    return { t: hariIni ? `Kondisimu jalan, ${nama}` : 'Kondisi sedang',
-             s: (w && w.form != null ? `Form ${w.form > 0 ? '+' : ''}${w.form}. ` : '')
-                + (debt ? `${debt.p} paling lama menganggur, ${lama(debt)}, dan itu yang diambil sesi hari ini.` : 'Sesi hari ini menyesuaikan diri dengan beban otot terakhir.') };
+    return { t: hariIni ? 'Belum ada sesi yang tersusun' : 'Tidak ada sesi hari itu',
+             s: (w && w.form != null ? `Kesiapan ${w.form > 0 ? '+' : ''}${w.form.toFixed(1)}. ` : '')
+                + 'Buka tab Latihan, sesinya disusun begitu halaman terbuka.' };
   }
 
 
@@ -423,60 +433,71 @@
       const d = (p!=null && cur!=null) ? +(cur-p).toFixed(dp) : null;
       const dir = d==null || d===0 ? 'flat' : (d>0 ? 'up' : 'down');
       const good = dir==='flat' ? 'flat' : ((dir==='up')===goodUp ? 'up' : 'down');
-      const ar = dir==='flat' ? '—' : dir==='up' ? '▲' : '▼';
+      const ar = dir==='flat' ? '\u2014' : dir==='up' ? '\u25b2' : '\u25bc';
       const style = zoneVar ? ` class="v zoned" style="--zc:var(${zoneVar})"` : ' class="v"';
       return `<div class="fb"><div class="k">${k}</div>
-        <div${style}>${val==null?'—':(val>0&&key==='form'?'+':'')+val.toFixed(dp)}</div>
+        <div${style}>${val==null?'\u2014':(val>0&&key==='form'?'+':'')+val.toFixed(dp)}</div>
         ${zoneName?`<div class="zn" style="--zc:var(${zoneVar})">${zoneName}</div>`:''}
-        <div class="d ${good}"><span class="ar">${ar}</span>${d==null?'—':d===0?'sama':(d>0?'+':'')+d.toFixed(dp)}</div>
-        <div class="p">kemarin ${p==null?'—':p.toFixed(dp)}</div></div>`;
+        <div class="d ${good}"><span class="ar">${ar}</span>${d==null?'\u2014':d===0?'sama':(d>0?'+':'')+d.toFixed(dp)}</div></div>`;
     };
     el.innerHTML = `<div class="fitbox">
-      ${box('Fitness','ctl', w.ctl, true, 0)}
-      ${box('Fatigue','atl', w.atl, false, 0)}
-      ${box('Form','form', w.form, true, 1, zone && zone.v, zone && zone.name)}
+      ${box('Kebugaran','ctl', w.ctl, true, 0)}
+      ${box('Kelelahan','atl', w.atl, false, 0)}
+      ${box('Kesiapan','form', w.form, true, 1, zone && zone.v, zone && zone.name)}
     </div>`;
 
-    /* ---- pembacaan coach ----
-       Urutannya sengaja: status keseluruhan dulu, lalu arti angka Form,
-       lalu rasio beban, lalu konteks lomba atau recovery, lalu apa yang
-       harus terlihat minggu depan. Tiap paragraf mengatakan hal berbeda. */
+    /* ---- pembacaan ----
+       Versi sebelumnya lima paragraf penuh istilah: Grey Zone, TSS, rasio akut
+       ke kronis. Itu benar tapi tidak terbaca. Sekarang satu kalimat vonis, satu
+       kalimat tindakan, satu kalimat perubahan. Istilahnya dipindah ke bagian
+       Rincian angka yang harus dibuka sendiri kalau memang mau. */
     const a = trainingAnalysis(rows);
     const hari = UI.daysUntil(goals.race_date);
     const ratio = (w.ctl && w.atl != null) ? +(w.atl / w.ctl).toFixed(2) : null;
     const z = zone ? zone.name : '';
     const f = w.form;
-    const P = [`<b>${a.headline}</b> ${a.evidenceText}`];
+    const dekat = hari >= 0 && hari <= 21;
 
-    if (z === 'Optimal') {
-      P.push(`Form <b>${f.toFixed(1)}</b> ada di <b>Optimal</b>. Beban tujuh harianmu cukup berat untuk memaksa adaptasi tapi masih bisa kamu serap. Ini kondisi yang dicari saat membangun, jadi tahan pola minggu ini.`);
-    } else if (z === 'Grey Zone') {
+    const V = {
+      'Optimal': ['Beban latihanmu pas.',
+        'Cukup berat untuk memaksa badan berubah, dan masih bisa kamu serap. Jalankan minggu ini seperti rencana, tidak perlu ditambah.'],
+      'Grey Zone': ['Latihanmu jalan di tempat.',
+        dekat ? 'Beban minggu ini kira kira sama dengan kebiasaanmu. Menjelang lomba ini justru arah yang benar.'
+              : 'Beban minggu ini kira kira sama dengan kebiasaanmu, jadi badan tidak punya alasan untuk berubah. Tambah satu sesi, atau perpanjang long run.'],
+      'Fresh': ['Kakimu sudah segar.',
+        dekat ? 'Kelelahan sudah luruh dan kaki siap dipakai tampil. Ini yang dicari menjelang lomba.'
+              : 'Kelelahan sudah luruh. Kalau lomba masih jauh, ini tanda latihanmu terlalu ringan dan kebugaran akan mulai turun dalam dua minggu.'],
+      'High Risk': ['Bebanmu terlalu berat.',
+        'Tujuh hari terakhir jauh di atas yang biasa kamu tanggung. Ambil dua sampai tiga hari mudah sekarang, jangan tunggu ada yang terasa sakit.'],
+      'Transition': ['Kebugaranmu sedang turun.',
+        'Sudah cukup lama tanpa beban berarti. Bangun lagi lewat jarak dulu, naik sekitar sepersepuluh tiap minggu, baru sentuh kecepatan.']
+    };
+    const v = V[z] || ['Belum cukup data untuk membaca arah.', 'Butuh sekitar dua minggu aktivitas sebelum angka ini punya arti.'];
+
+    /* Perubahan tujuh hari, dikatakan sebagai kalimat, bukan angka delta. */
+    const r7 = rows.length > 7 ? rows[rows.length-8] : null;
+    let gerak = '';
+    if (r7 && r7.ctl != null && r7.atl != null) {
+      const dc = w.ctl - r7.ctl, da = w.atl - r7.atl;
+      const kata = (d, naik, turun, tetap) => Math.abs(d) < 1 ? tetap : (d > 0 ? naik : turun);
+      gerak = `Sepekan terakhir kebugaranmu ${kata(dc,'naik','turun','bertahan')} dan kelelahan ${kata(da,'naik','turun','bertahan')}.`;
+    }
+    let lomba = '';
+    if (hari >= 0 && hari <= 21) lomba = `${hari === 0 ? 'Lomba hari ini.' : hari + ' hari lagi ke lomba.'}`;
+
+    const rinci = [];
+    if (ratio != null) rinci.push(`Rasio beban tujuh hari terhadap kebiasaan 42 hari <b>${ratio}</b>. Rentang amannya 0,8 sampai 1,3. Di atas itu risiko cedera naik, di bawah itu kamu sedang kehilangan bentuk, bukan istirahat.`);
+    if (z === 'Grey Zone' && !dekat) {
       const need = Math.max(0, f - (-10));
-      const load = Math.round(need * 7);
-      P.push(`Form <b>${f.toFixed(1)}</b> ada di <b>Grey Zone</b>. Beban akut tujuh harimu hampir sama besar dengan kapasitas 42 harimu, jadi tubuh tidak menerima sinyal untuk berubah. Untuk masuk Optimal, fatigue perlu naik sekitar <b>${need.toFixed(0)} poin</b>, kira kira setara tambahan ${load} TSS dalam sepekan. Kalau yang dikejar justru kesiapan lomba, arahnya sebaliknya.`);
-    } else if (z === 'Fresh') {
-      P.push(`Form <b>+${f.toFixed(1)}</b> berarti <b>Fresh</b>. Kelelahan sudah luruh dan kaki siap dipakai tampil. Bagus kalau lomba dekat. Kalau lomba masih jauh, ini tanda beban tujuh harianmu terlalu ringan dan fitness akan mulai turun dalam dua minggu.`);
-    } else if (z === 'High Risk') {
-      P.push(`Form <b>${f.toFixed(1)}</b> masuk <b>High Risk</b>. Beban tujuh harimu jauh melampaui kapasitas 42 harimu. Ambil dua sampai tiga hari mudah sekarang, jangan tunggu ada yang terasa sakit.`);
-    } else if (z === 'Transition') {
-      P.push(`Form <b>+${f.toFixed(1)}</b> masuk <b>Transition</b>. Sudah cukup lama tidak ada beban berarti dan kebugaran mulai luruh. Bangun lagi lewat volume dulu, naik sekitar 10 persen per minggu, baru sentuh intensitas.`);
+      rinci.push(`Kesiapan <b>${f.toFixed(1)}</b>. Untuk masuk zona Optimal, kelelahan perlu naik sekitar <b>${need.toFixed(0)} poin</b>, kira kira setara tambahan ${Math.round(need * 7)} TSS dalam sepekan.`);
     }
+    rinci.push(`<b>${a.headline}</b> ${a.evidenceText}`);
+    rinci.push(`Tujuh hari ke depan: ${a.watch}.`);
 
-    if (ratio != null) {
-      P.push(ratio >= 1.3
-        ? `Rasio beban akut ke kronis <b>${ratio}</b>. Di atas 1,3 risiko cedera naik tajam.`
-        : ratio <= 0.8
-        ? `Rasio beban akut ke kronis <b>${ratio}</b>. Di bawah 0,8 artinya kamu sedang detraining, bukan istirahat.`
-        : `Rasio beban akut ke kronis <b>${ratio}</b>, masih di rentang aman 0,8 sampai 1,3.`);
-    }
-
-    if (a.context) P.push(a.context);
-    else if (hari >= 0 && hari <= 21) {
-      P.push(`${hari} hari ke lomba. Target form di hari lomba ada di rentang +5 sampai +15. Dari ${f.toFixed(1)} sekarang, itu berarti volume mulai dipotong sekitar H minus 10.`);
-    }
-
-    P.push(`<b>Tujuh hari ke depan:</b> ${a.watch}.`);
-    coach.querySelector('.cb-txt').innerHTML = P.map(x=>`<p>${x}</p>`).join('');
+    coach.querySelector('.cb-txt').innerHTML =
+      `<p><b>${v[0]}</b> ${v[1]}</p>` +
+      (gerak || lomba ? `<p class="soft">${[lomba, gerak].filter(Boolean).join(' ')}</p>` : '') +
+      `<details class="rinci"><summary>Rincian angka</summary>${rinci.map(x=>`<p>${x}</p>`).join('')}</details>`;
   }
 
   function sparkline(rows) {
@@ -912,13 +933,17 @@
     $('#g-bf').value = goals.bf_target_pct; $('#g-tdee').value = goals.tdee_low;
     if ($('#g-weight')) $('#g-weight').value = goals.weight_target != null ? goals.weight_target : 67;
     if (window.TRAIN) { TRAIN.renderGear($('#gear-body')); TRAIN.renderLib($('#lib-body')); }
-    const st=(r,o)=>`<div class="rowitem"><div class="d">${r}</div><div class="m">${o}</div><div></div></div>`;
+    const kv=(k,v)=>`<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
     const w = wellness&&wellness.ok, a = activities&&activities.ok;
-    $('#conn-body').innerHTML = `<div class="loglist">
-      ${st('Lokal','<b>Aktif</b> — '+logs.length+' catatan, '+photos.length+' foto')}
-      ${st('intervals.icu', (w||a)?'<b>Tersambung</b>':'<b>Belum</b>')}
-      ${st('Hari pertama', '<b>'+UI.fmt(launchDate(), true)+'</b>')}
-    </div>`;
+    const nSesi = window.TRAIN ? TRAIN.allSessions().length : 0;
+    $('#conn-body').innerHTML =
+      kv('Penyimpanan', 'HP ini saja<small>IndexedDB, tidak di server</small>') +
+      kv('Catatan harian', logs.length + ' hari') +
+      kv('Sesi latihan', nSesi + ' sesi') +
+      kv('Foto', photos.length) +
+      kv('intervals.icu', (w||a) ? 'Tersambung' : 'Belum tersambung') +
+      kv('Hari pertama', UI.fmt(launchDate(), true)) +
+      `<p class="note-sm"><b>HP dan komputer tidak saling menyusul.</b> Tiap alat menyimpan salinannya sendiri di browser masing-masing, jadi berat yang kamu isi di HP tidak akan muncul di komputer. Satu-satunya jembatan sekarang Ekspor JSON di kartu bawah. Ini hilang setelah Supabase masuk.</p>`;
   }
 
   function renderAll() {

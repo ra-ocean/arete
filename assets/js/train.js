@@ -167,31 +167,45 @@ window.TRAIN = (function () {
      langkah dan kemampuan mengangkat lutut saat pace naik. */
   slhipflex:{n:'Hip flexion satu kaki dengan beban',a:'hip flexion hipflexor angkat lutut beban',p:'Hip flexor',s:'Rectus abdominis',g:'Band',pat:'Hip flexor',slot:5,kind:'load',tier:'berat',def:[[0,12],[0,12],[0,12]],alt:['hangknee','psoasmarch'],
     cue:[['Setup','Band di pergelangan kaki, ujung lain di bawah. Berdiri tegak, pegangan ringan.'],['Gerakan','Angkat lutut sampai di atas sejajar pinggul, tahan sebentar, turun pelan.'],['Kesalahan','Badan rebah ke belakang mencari tenaga. Batang badan tetap tegak.']]},
-  hangknee:{n:'Hanging knee raise',a:'hanging knee raise leg raise gantung',p:'Hip flexor, Rectus abdominis',s:'Oblique',g:'Captain chair',pat:'Hip flexor',pat2:'Core',slot:5,kind:'load',tier:'berat',def:[[0,12],[0,12],[0,12]],alt:['slhipflex','legraise'],
+  hangknee:{n:'Hanging knee raise',a:'hanging knee raise leg raise gantung',p:'Hip flexor, Rectus abdominis',s:'Oblique',g:'Captain chair',pat:'Hip flexor',pat2:'Core',abs:'bawah',slot:5,kind:'load',tier:'berat',def:[[0,12],[0,12],[0,12]],alt:['slhipflex','legraise'],
     cue:[['Setup','Gantung atau di captain chair, pundak turun aktif.'],['Gerakan','Angkat lutut di atas sejajar pinggul, panggul sedikit terselip di akhir.'],['Kesalahan','Mengayun. Kalau mengayun, kurangi rentangnya dulu.']],
     note:'Mengisi Hip flexor dan Core sekaligus.'},
-  legraise:{n:'Hanging leg raise di stall bar',a:'leg raise hanging straight leg',p:'Hip flexor, Rectus abdominis',s:'Oblique',g:'Stall bar',pat:'Hip flexor',pat2:'Core',slot:5,kind:'load',tier:'berat',def:[[0,8],[0,8],[0,8]],alt:['hangknee','slhipflex'],
+  legraise:{n:'Hanging leg raise di stall bar',a:'leg raise hanging straight leg',p:'Hip flexor, Rectus abdominis',s:'Oblique',g:'Stall bar',pat:'Hip flexor',pat2:'Core',abs:'bawah',slot:5,kind:'load',tier:'berat',def:[[0,8],[0,8],[0,8]],alt:['hangknee','slhipflex'],
     cue:[['Setup','Gantung dengan kaki lurus, pundak aktif turun.'],['Gerakan','Angkat kaki lurus setinggi mungkin tanpa mengayun.'],['Kesalahan','Menekuk lutut untuk mencapai lebih tinggi. Kalau berat, pakai hanging knee raise.']]},
   psoasmarch:{n:'Psoas march terlentang',a:'psoas march dead bug band march',p:'Hip flexor',s:'Transverse abdominis',g:'Band',pat:'Hip flexor',slot:1,kind:'time',tier:'sedang',def:[[40],[40]],alt:['slhipflex','deadbug'],
     cue:[['Setup','Terlentang, band mengait dua kaki, punggung bawah menempel lantai.'],['Gerakan','Dorong satu kaki menjauh sambil menahan satu lainnya menekuk. Bergantian.'],['Kesalahan','Punggung bawah terangkat dari lantai. Itu batas rentangmu.']]},
 
   /* ---------- CORE ANTI-ROTASI ---------- */
-  pallof:{n:'Pallof press',a:'pallof press anti rotasi',p:'Oblique, Transverse abdominis',s:'Gluteus medius',g:'Cable crossover',pat:'Core',slot:6,kind:'time',tier:'berat',def:[[25],[25],[25]],alt:['bandpallof','deadbug'],
+  pallof:{n:'Pallof press',a:'pallof press anti rotasi',p:'Oblique, Transverse abdominis',s:'Gluteus medius',g:'Cable crossover',pat:'Core',abs:'rotasi',slot:6,kind:'time',tier:'berat',def:[[25],[25],[25]],alt:['bandpallof','deadbug'],
     cue:[['Setup','Berdiri menyamping ke kabel setinggi dada, kaki selebar pinggul.'],['Gerakan','Dorong lurus ke depan dan tahan. Tugasnya menahan putaran, bukan bergerak.'],['Kesalahan','Badan berputar mengikuti kabel. Kurangi bebannya.']]},
-  bandpallof:{n:'Pallof press dengan band',a:'pallof band anti rotasi band',p:'Oblique, Transverse abdominis',s:'Gluteus medius',g:'Band',pat:'Core',slot:6,kind:'time',tier:'sedang',def:[[30],[30],[30]],alt:['pallof','deadbug'],
+  bandpallof:{n:'Pallof press dengan band',a:'pallof band anti rotasi band',p:'Oblique, Transverse abdominis',s:'Gluteus medius',g:'Band',pat:'Core',abs:'rotasi',slot:6,kind:'time',tier:'sedang',def:[[30],[30],[30]],alt:['pallof','deadbug'],
     cue:[['Setup','Band diikat setinggi dada, berdiri menyamping.'],['Gerakan','Dorong lurus dan tahan.'],['Kesalahan','Menahan napas. Bernapas normal sambil menahan.']]},
-  deadbug:{n:'Dead bug',a:'dead bug deadbug',p:'Rectus abdominis, Transverse abdominis',s:'Hip flexor',g:'Matras',pat:'Core',slot:6,kind:'time',tier:'sedang',def:[[40],[40]],alt:['birddog','psoasmarch'],
+  deadbug:{n:'Dead bug',a:'dead bug deadbug',p:'Rectus abdominis, Transverse abdominis',s:'Hip flexor',g:'Matras',pat:'Core',abs:'anti',slot:6,kind:'time',tier:'sedang',def:[[40],[40]],alt:['birddog','psoasmarch'],
     cue:[['Setup','Terlentang, lutut dan tangan di atas, punggung bawah menempel lantai.'],['Gerakan','Turunkan satu tangan dan kaki berlawanan, punggung tetap menempel.'],['Kesalahan','Punggung bawah terangkat. Perkecil rentangnya.']]},
-  birddog:{n:'Bird dog',a:'bird dog quadruped',p:'Erector spinae, Transverse abdominis',s:'Gluteus maximus',g:'Matras',pat:'Core',slot:6,kind:'time',tier:'ringan',def:[[40],[40]],alt:['deadbug','sidep'],
+  birddog:{n:'Bird dog',a:'bird dog quadruped',p:'Erector spinae, Transverse abdominis',s:'Gluteus maximus',g:'Matras',pat:'Core',abs:'anti',slot:6,kind:'time',tier:'ringan',def:[[40],[40]],alt:['deadbug','sidep'],
     cue:[['Setup','Posisi empat tumpuan, punggung netral.'],['Gerakan','Luruskan tangan dan kaki berlawanan, tahan, tukar.'],['Kesalahan','Panggul miring. Bayangkan gelas air di punggung bawah.']]},
-  sidep:{n:'Side plank',a:'side plank plank samping',p:'Oblique',s:'Gluteus medius',g:'Matras',pat:'Core',slot:6,kind:'time',tier:'sedang',def:[[40],[40]],alt:['copen','deadbug'],
+  sidep:{n:'Side plank',a:'side plank plank samping',p:'Oblique',s:'Gluteus medius',g:'Matras',pat:'Core',abs:'rotasi',slot:6,kind:'time',tier:'sedang',def:[[40],[40]],alt:['copen','deadbug'],
     cue:[['Setup','Siku di bawah bahu, badan satu garis.'],['Gerakan','Angkat pinggul dan tahan. Pinggul atas jangan jatuh ke belakang.'],['Kesalahan','Pinggul melorot ke bawah tanpa sadar di detik terakhir.']]},
-  copen:{n:'Copenhagen plank satu kaki',a:'copenhagen hold adductor plank',p:'Adductor',s:'Oblique',g:'Bench',pat:'Core',slot:6,kind:'time',tier:'berat',def:[[25],[25],[25]],alt:['sidep','deadbug'],
+  copen:{n:'Copenhagen plank satu kaki',a:'copenhagen hold adductor plank',p:'Adductor',s:'Oblique',g:'Bench',pat:'Core',abs:'rotasi',slot:6,kind:'time',tier:'berat',def:[[25],[25],[25]],alt:['sidep','deadbug'],
     cue:[['Setup','Siku di lantai, kaki atas di bench dari bagian dalam lutut atau pergelangan.'],['Gerakan','Angkat pinggul dan tahan. Mulai dari versi lutut kalau baru.'],['Kesalahan','Langsung versi pergelangan kaki. Adductor gampang kena kalau dipaksa.']],
     note:'Bukti paling kuat untuk mencegah cedera adductor. Relevan untuk pelari yang juga bermain lapangan.'},
-  abwheel:{n:'Ab wheel',a:'ab wheel rollout',p:'Rectus abdominis, Transverse abdominis',s:'Latissimus dorsi',g:'Matras',pat:'Core',slot:6,kind:'load',tier:'berat',def:[[0,8],[0,8],[0,8]],alt:['deadbug','plank'],
+  hollow:{n:'Hollow hold',a:'hollow hold body hollow',p:'Rectus abdominis, Transverse abdominis',s:'Hip flexor',g:'Matras',pat:'Core',abs:'anti',slot:6,kind:'time',tier:'berat',def:[[30],[30],[30]],alt:['plank','deadbug'],
+    cue:[['Setup','Terlentang, punggung bawah menempel lantai, tangan dan kaki terangkat.'],['Gerakan','Turunkan tangan dan kaki sejauh punggung masih menempel. Tahan.'],['Kesalahan','Punggung bawah terangkat. Tekuk lutut sedikit sampai bisa menempel lagi.']],
+    note:'Melatih perut menahan badan tetap lurus, persis tugasnya saat lari.'},
+  revcrunch:{n:'Reverse crunch',a:'reverse crunch crunch terbalik',p:'Rectus abdominis bawah',s:'Hip flexor',g:'Matras',pat:'Core',abs:'bawah',slot:6,kind:'load',tier:'sedang',def:[[0,15],[0,15],[0,15]],alt:['hangknee','legraise'],
+    cue:[['Setup','Terlentang, lutut menekuk, tangan di samping badan.'],['Gerakan','Gulung panggul ke arah dada. Yang naik panggul, bukan kaki.'],['Kesalahan','Mengayun kaki ke atas. Kalau panggul tidak terangkat, perut bawah tidak bekerja.']]},
+  situp:{n:'Sit-up rentang penuh',a:'situp sit up crunch perut atas',p:'Rectus abdominis atas',s:'Hip flexor',g:'Matras',pat:'Core',abs:'atas',slot:6,kind:'load',tier:'sedang',def:[[0,15],[0,15],[0,15]],alt:['cablecrunch','vup'],
+    cue:[['Setup','Terlentang, lutut menekuk, tangan menyilang di dada.'],['Gerakan','Gulung tulang belakang satu per satu, bukan diangkat kaku.'],['Kesalahan','Menarik leher dengan tangan. Taruh tangan di dada, bukan di belakang kepala.']]},
+  cablecrunch:{n:'Cable crunch berlutut',a:'cable crunch kneeling crunch',p:'Rectus abdominis atas',s:'Oblique',g:'Cable crossover',pat:'Core',abs:'atas',slot:6,kind:'load',tier:'berat',def:[[25,12],[25,12],[25,12]],alt:['situp','vup'],
+    cue:[['Setup','Berlutut menghadap kabel, tali di samping kepala.'],['Gerakan','Gulung tulang belakang ke bawah dengan perut. Pinggul tidak bergerak.'],['Kesalahan','Menarik dengan tangan dan menekuk pinggul. Kunci pinggul di tempatnya.']],
+    note:'Satu satunya gerakan perut di gym ini yang bebannya bisa dinaikkan bertahap seperti angkatan lain.'},
+  vup:{n:'V-up',a:'v up vup jackknife',p:'Rectus abdominis',s:'Hip flexor',g:'Matras',pat:'Core',abs:'atas',slot:6,kind:'load',tier:'berat',def:[[0,12],[0,12],[0,12]],alt:['situp','hollow'],
+    cue:[['Setup','Terlentang lurus, tangan di atas kepala.'],['Gerakan','Angkat tangan dan kaki bersamaan sampai bertemu di atas panggul.'],['Kesalahan','Menghentak dari bahu. Kalau berat, tekuk lutut dulu.']]},
+  russian:{n:'Russian twist',a:'russian twist rotasi perut',p:'Oblique',s:'Rectus abdominis',g:'Med ball',pat:'Core',abs:'rotasi',slot:6,kind:'load',tier:'sedang',def:[[6,20],[6,20],[6,20]],alt:['sidep','pallof'],
+    cue:[['Setup','Duduk, lutut menekuk, badan condong ke belakang sekitar 45 derajat.'],['Gerakan','Putar batang badan ke kiri dan kanan. Bahu ikut berputar, bukan cuma tangan.'],['Kesalahan','Tangan bergerak tapi bahu diam. Itu bukan rotasi.']]},
+  abwheel:{n:'Ab wheel',a:'ab wheel rollout',p:'Rectus abdominis, Transverse abdominis',s:'Latissimus dorsi',g:'Matras',pat:'Core',abs:'anti',slot:6,kind:'load',tier:'berat',def:[[0,8],[0,8],[0,8]],alt:['deadbug','plank'],
     cue:[['Setup','Berlutut, roda di depan lutut, panggul terselip.'],['Gerakan','Gulir ke depan sejauh punggung bawah masih bisa netral.'],['Kesalahan','Punggung bawah melengkung. Itu tanda melewati batas rentangmu.']]},
-  plank:{n:'Plank',a:'plank papan',p:'Transverse abdominis',s:'Deltoid',g:'Matras',pat:'Core',slot:6,kind:'time',tier:'ringan',def:[[45],[45]],alt:['deadbug','sidep'],
+  plank:{n:'Plank',a:'plank papan',p:'Transverse abdominis',s:'Deltoid',g:'Matras',pat:'Core',abs:'anti',slot:6,kind:'time',tier:'ringan',def:[[45],[45]],alt:['deadbug','sidep'],
     cue:[['Setup','Siku di bawah bahu, badan satu garis dari kepala ke tumit.'],['Gerakan','Kunci glute dan perut, tahan.'],['Kesalahan','Menahan lama dengan pinggul melorot. Lebih baik pendek tapi rapat.']]},
 
   /* ---------- PLYO DAN POWER ---------- */
@@ -287,6 +301,11 @@ window.TRAIN = (function () {
       if (t === 'ringan') return;
       patsOf(it.id).forEach(p => out.push({ key:c.key, p:p, t:t, from:'coach' }));
     }));
+    absSessions().forEach(a => a.items.forEach(it => {
+      const t = it.tier || tierOf(it.id);
+      if (t === 'ringan') return;
+      patsOf(it.id).forEach(p => out.push({ key:a.key, p:p, t:t, from:'perut' }));
+    }));
     return out;
   }
 
@@ -345,18 +364,24 @@ window.TRAIN = (function () {
     return lvl;
   }
 
+  const REGOF = { 'gluteus maximus':'glutes','gluteus medius':'glutes','gluteus minimus':'glutes',
+    'hamstring':'hams','quadriceps':'quads','adductor':'adductors','hip flexor':'hipflexor',
+    'iliopsoas':'hipflexor','gastrocnemius':'gastroc','gastrocnemius medial':'gastroc',
+    'gastrocnemius lateral':'gastroc','soleus':'soleus','tibialis anterior':'tibialis',
+    'tibialis posterior':'soleus','peroneal':'tibialis','erector spinae':'lowback',
+    'rectus abdominis':'abs','rectus abdominis atas':'abs','rectus abdominis bawah':'abs',
+    'transverse abdominis':'abs','oblique':'obliques','external oblique':'obliques',
+    'latissimus dorsi':'lats','teres major':'lats','rhomboid':'traps','trapezius':'traps',
+    'trapezius tengah':'traps','deltoid':'delts','deltoid anterior':'delts',
+    'pectoralis major':'chest','trisep':'triceps','triceps':'triceps','biceps':'biceps','bisep':'biceps',
+    'core':'abs' };
+  const regOf = m => REGOF[String(m || '').trim().toLowerCase()] || null;
+
   function pick(pat, slot, mus, used, taken) {
     const C = CAT();
     const load = m => {
       if (!mus || !mus.byId) return 0;
-      const reg = { 'gluteus maximus':'glutes','gluteus medius':'glutes','hamstring':'hams',
-        'quadriceps':'quads','adductor':'adductors','hip flexor':'hipflexor','gastrocnemius':'gastroc',
-        'gastrocnemius medial':'gastroc','gastrocnemius lateral':'gastroc','soleus':'soleus',
-        'tibialis anterior':'tibialis','tibialis posterior':'soleus','peroneal':'tibialis',
-        'erector spinae':'lowback','rectus abdominis':'abs','transverse abdominis':'abs',
-        'oblique':'obliques','latissimus dorsi':'lats','rhomboid':'traps','trapezius':'traps',
-        'deltoid':'delts','pectoralis major':'chest','trisep':'triceps','biceps':'biceps' };
-      const id = reg[String(m).trim().toLowerCase()];
+      const id = regOf(m);
       const r = id ? mus.byId(id) : null;
       return r ? r.total : 0;
     };
@@ -498,23 +523,69 @@ window.TRAIN = (function () {
 
   /* ============================================================
      MENU PERUT HARIAN
-     Dua varian karena gym tidak selalu terjangkau, dan perut adalah
-     satu-satunya bagian yang layak dikerjakan tiap hari.
+     Bukan daftar acak. Perut punya empat tugas yang berbeda, dan sesi yang
+     cuma plank plus sit-up melewatkan dua di antaranya.
+
+     anti    menahan badan tidak melengkung. Ini tugas perut saat lari.
+     bawah   menggulung panggul ke arah dada. Rectus bagian bawah.
+     atas    menggulung dada ke arah panggul. Rectus bagian atas.
+     rotasi  menahan dan menghasilkan putaran. Oblique.
+
+     Tiap hari satu gerakan per wilayah, dan gerakannya berputar sepanjang
+     minggu supaya tidak itu itu saja.
      ============================================================ */
-  const ABS = {
-    gym:  ['hangknee','pallof','abwheel','copen'],
-    home: ['deadbug','sidep','bandpallof','plank']
-  };
-  function absToday(key) { return st.abs[key] || { mode:'home', done:[] }; }
+  const ABSREG = [
+    ['anti',  'Anti-ekstensi', 'Menahan badan tidak melengkung. Ini yang dipakai perut saat lari.'],
+    ['bawah', 'Rectus bawah',  'Menggulung panggul ke arah dada.'],
+    ['atas',  'Rectus atas',   'Menggulung dada ke arah panggul.'],
+    ['rotasi','Oblique',       'Menahan dan menghasilkan putaran batang badan.']
+  ];
+  const HOMEGEAR = ['Bodyweight','Band','Matras'];
+  function absPool(reg, mode) {
+    const C = CAT();
+    return Object.keys(C).filter(id => {
+      const e = C[id];
+      if (e.abs !== reg) return false;
+      if (!gearOk(id)) return false;
+      if (mode === 'home' && HOMEGEAR.indexOf(e.g) < 0) return false;
+      return true;
+    }).sort((a, b) => {
+      /* Di gym, dahulukan gerakan yang bebannya bisa dinaikkan bertahap.
+         Itu satu satunya alasan mengerjakan perut di gym dan bukan di rumah. */
+      if (mode === 'gym') {
+        const berat = id => (HOMEGEAR.indexOf(C[id].g) < 0 ? 0 : 1);
+        if (berat(a) !== berat(b)) return berat(a) - berat(b);
+      }
+      return C[a].n.localeCompare(C[b].n);
+    });
+  }
+  function absToday(key) {
+    const a = st.abs[key] || { mode:'home', items:[] };
+    if (!a.items) a.items = [];
+    return a;
+  }
+  /* Gerakan berputar menurut hari, jadi stabil dalam satu hari tapi
+     berbeda dari hari ke hari. */
+  function absPick(key, mode) {
+    const n = dayNum(key);
+    return ABSREG.map(([reg]) => {
+      const pool = absPool(reg, mode);
+      return pool.length ? pool[n % pool.length] : null;
+    }).filter(Boolean);
+  }
 
   /* ============================================================
      PENYIMPANAN SESI
      ============================================================ */
   function sessionOf(key) { return st.sessions.find(s => s.key === key) || null; }
+  function absSessions() {
+    return Object.keys(st.abs).map(k => ({ key:k, abs:true, items:(st.abs[k].items || []) }))
+      .filter(x => x.items.length);
+  }
   function allSessions() {
-    return st.sessions.concat(st.coach).map(s => ({
+    return st.sessions.concat(st.coach).concat(absSessions()).map(s => ({
       key: s.key,
-      label: s.coach ? 'Sesi coach' : 'Sesi Areté',
+      label: s.coach ? 'Sesi coach' : s.abs ? 'Perut harian' : 'Sesi Areté',
       load: (s.items || []).reduce((a, it) => {
         const t = it.tier || tierOf(it.id);
         const sets = (it.sets && it.sets.length) || it.setsN || 3;
@@ -549,7 +620,7 @@ window.TRAIN = (function () {
   };
   const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 
-  let sel = null, mus = null, cur = null;
+  let sel = null, mus = null, cur = null, heatMounted = false;
 
   function setRow(id, ex, d, i, saved) {
     const warm = d[2] === 'W';
@@ -791,23 +862,121 @@ window.TRAIN = (function () {
   /* ---------- menu perut harian ---------- */
   function absCard() {
     const a = absToday(sel);
-    const ids = ABS[a.mode] || ABS.home;
-    const done = a.done || [];
-    return `<div class="pc-head"><h2>Perut harian</h2><span class="pc-hint">${done.length} dari ${ids.length}</span></div>
-      <p class="tm2">Satu-satunya bagian yang layak dikerjakan tiap hari. Dua varian, karena gym tidak selalu terjangkau.</p>
+    const ids = absPick(sel, a.mode);
+    const sudah = (a.items || []).length;
+    return `<div class="pc-head"><h2>Perut harian</h2><span class="pc-hint">${sudah ? sudah + ' tercatat' : 'belum dicatat'}</span></div>
+      <p class="tm2">Perut punya empat tugas yang berbeda, dan sesi yang cuma plank dan sit-up melewatkan dua di antaranya. Tiap hari satu gerakan per wilayah, dan gerakannya berputar sepanjang minggu.</p>
       <div class="msrc" id="abs-mode">
-        <button data-am="gym" aria-pressed="${a.mode === 'gym'}" type="button">Di gym</button>
         <button data-am="home" aria-pressed="${a.mode === 'home'}" type="button">Di rumah</button>
+        <button data-am="gym" aria-pressed="${a.mode === 'gym'}" type="button">Di gym</button>
       </div>
-      <ul class="ablist">${ids.map(id => {
-        const e = byId(id) || {};
-        const on = done.indexOf(id) >= 0;
-        const dosis = e.kind === 'time' ? `${(e.def[0] || [])[0]} detik x ${e.def.length}` : `${(e.def[0] || [])[1]} reps x ${e.def.length}`;
-        return `<li><button data-ab="${id}" aria-pressed="${on}" type="button">
-          <span class="box"></span>
-          <span class="t"><span class="n">${esc(e.n)}</span><span class="d">${dosis} &middot; ${esc(e.p)}</span></span></button></li>`;
-      }).join('')}</ul>
-      <p class="dnote">Perut masuk sebagai pola Core. Kalau semuanya dicentang, hitungan utang Core ikut direset.</p>`;
+      <div id="abs-slots">${ids.map((id, k) => {
+        const reg = ABSREG[k] || ABSREG[0];
+        const saved = (a.items || []).find(x => x.id === (swap[id] || id));
+        return `<div class="slot">
+          <div class="slot-h"><span class="n">${k + 1}</span><h2>${reg[1]}</h2></div>
+          <p class="tm" style="margin:-4px 0 8px 2px">${reg[2]}</p>
+          ${exCard(id, saved)}
+        </div>`;
+      }).join('')}</div>
+      <button class="btn" id="abs-save" type="button">Simpan perut hari ini</button>
+      <div class="msg" id="abs-msg"></div>
+      <p class="dnote">Perut masuk sebagai pola Core. Begitu tersimpan, hitungan utang Core ikut direset dan beban perut muncul di peta otot.</p>`;
+  }
+
+  /* ============================================================
+     PETA OTOT SESI HARI INI
+     Bukan beban yang sudah menumpuk, tapi otot mana yang akan kena
+     oleh sesi hari ini. Dua pertanyaan yang berbeda, jadi dua peta.
+     ============================================================ */
+  function sessionHeat(ids) {
+    const h = {};
+    ids.forEach(id => {
+      const e = byId(id); if (!e) return;
+      String(e.p || '').split(',').forEach(n => { const r = regOf(n); if (r) h[r] = Math.min(100, (h[r] || 0) + 55); });
+      String(e.s || '').split(',').forEach(n => { const r = regOf(n); if (r) h[r] = Math.min(100, (h[r] || 0) + 22); });
+    });
+    return h;
+  }
+  function heatData(h) {
+    return { byId: id => ({ id:id, total:h[id] || 0, run:0, lift:h[id] || 0 }) };
+  }
+  function heatTop(h) {
+    return Object.keys(h).sort((a, b) => h[b] - h[a]).slice(0, 4).map(id => {
+      const r = window.Muscle ? (window.Muscle.REG.find(x => x.id === id) || {}) : {};
+      return { id:id, label:r.label || id, v:h[id] };
+    });
+  }
+
+  /* ============================================================
+     RINGKASAN SESI
+     Beban yang benar benar terangkat, plus satu pembanding yang jujur.
+     Yang dihitung cuma beban luar. Gerakan berat badan tidak ikut karena
+     porsi berat badan yang terangkat beda beda tiap gerakan, dan menebaknya
+     akan membuat angkanya terlihat besar tanpa dasar.
+     ============================================================ */
+  const BANDING = [
+    { n:19,   t:'galon air 19 liter',        ic:'galon' },
+    { n:25,   t:'karung beras 25 kg',        ic:'beras' },
+    { n:100,  t:'motor bebek',               ic:'motor' },
+    { n:400,  t:'sapi dewasa',               ic:'sapi'  },
+    { n:1100, t:'mobil Avanza',              ic:'mobil' },
+    { n:3000, t:'gajah Sumatera',            ic:'gajah' },
+    { n:4500, t:'truk Colt Diesel kosong',   ic:'truk'  }
+  ];
+  /* Ilustrasi dibuat dari bentuk terpisah, bukan satu path dengan subpath
+     yang saling menimpa. Kalau digabung, bagian yang arah gambarnya berlawanan
+     akan berlubang dan sapi jadi terlihat seperti kotak berlubang dua. */
+  const ICO = {
+    galon:'<rect x="26" y="5" width="12" height="7" rx="2"/><rect x="16" y="11" width="32" height="48" rx="9"/><rect x="22" y="21" width="20" height="9" rx="2" fill="var(--bg)"/>',
+    beras:'<path d="M18 22c4-7 8-11 14-11s10 4 14 11c2 3 2 6 2 9l-3 20a8 8 0 01-8 7H27a8 8 0 01-8-7l-3-20c0-3 0-6 2-9z"/><rect x="22" y="28" width="20" height="8" fill="var(--bg)"/><path d="M25 12l7-5 7 5z"/>',
+    motor:'<circle cx="15" cy="46" r="11"/><circle cx="15" cy="46" r="5" fill="var(--bg)"/><circle cx="49" cy="46" r="11"/><circle cx="49" cy="46" r="5" fill="var(--bg)"/><path d="M15 46 32 30h10l7 16z" /><rect x="28" y="24" width="18" height="7" rx="3"/><rect x="44" y="14" width="14" height="5" rx="2"/><path d="M44 19h5v10h-5z"/>',
+    sapi:'<rect x="20" y="20" width="34" height="23" rx="7"/><rect x="4" y="25" width="19" height="17" rx="6"/><rect x="24" y="41" width="6" height="15" rx="2"/><rect x="34" y="41" width="6" height="15" rx="2"/><rect x="42" y="41" width="6" height="15" rx="2"/><rect x="50" y="41" width="6" height="15" rx="2"/><path d="M6 25 2 17l6 3zM20 25l4-8-6 3z"/><path d="M54 24l8-5 2 4-9 5z"/><circle cx="10" cy="32" r="2" fill="var(--bg)"/>',
+    mobil:'<path d="M21 23h22a7 7 0 016 4l5 11H10l5-11a7 7 0 016-4z"/><rect x="24" y="26" width="16" height="10" rx="2" fill="var(--bg)"/><rect x="5" y="37" width="54" height="12" rx="5"/><circle cx="18" cy="50" r="7"/><circle cx="46" cy="50" r="7"/><circle cx="18" cy="50" r="3" fill="var(--bg)"/><circle cx="46" cy="50" r="3" fill="var(--bg)"/>',
+    gajah:'<rect x="24" y="17" width="34" height="28" rx="10"/><rect x="6" y="19" width="24" height="26" rx="10"/><rect x="14" y="22" width="15" height="19" rx="7"/><path d="M9 40c-4 5-6 10-5 14a4 4 0 008 0c0-3 1-6 4-9z"/><rect x="26" y="44" width="7" height="13" rx="2"/><rect x="36" y="44" width="7" height="13" rx="2"/><rect x="46" y="44" width="7" height="13" rx="2"/><circle cx="11" cy="28" r="2" fill="var(--bg)"/>',
+    truk:'<rect x="3" y="18" width="31" height="26" rx="3"/><path d="M37 24h11l10 12v8H37z"/><rect x="41" y="27" width="10" height="8" rx="2" fill="var(--bg)"/><rect x="3" y="44" width="55" height="4"/><circle cx="16" cy="51" r="7"/><circle cx="48" cy="51" r="7"/><circle cx="16" cy="51" r="3" fill="var(--bg)"/><circle cx="48" cy="51" r="3" fill="var(--bg)"/>'
+  };
+;
+  /* Pembanding yang dipilih adalah yang angkanya paling enak dibaca, yaitu
+     bilangan bulat antara 2 dan 12. Satu koma sembilan sapi bukan gambaran
+     yang membantu siapa pun. */
+  function bandingOf(kg) {
+    if (kg < 40) return null;
+    const skor = b => {
+      const n = kg / b.n;
+      if (n < 2) return -1;
+      if (n > 40) return -1;
+      return 100 - Math.abs(n - 6) * 4 - (n > 12 ? 25 : 0);
+    };
+    let best = null, bs = -1;
+    BANDING.forEach(b => { const v = skor(b); if (v > bs) { bs = v; best = b; } });
+    if (!best) return null;
+    return { t: best.t, ic: best.ic, n: Math.round(kg / best.n) };
+  }
+  function ringkas(rec) {
+    if (!rec || !(rec.items || []).length) return '';
+    let kg = 0, set = 0, reps = 0, detik = 0, luar = 0;
+    rec.items.forEach(it => {
+      const e = byId(it.id) || {};
+      (it.sets || []).forEach(x => {
+        set++;
+        if (e.kind === 'time') detik += +x.r || 0;
+        else reps += +x.r || 0;
+        if (e.kind === 'load' && (+x.w || 0) > 0) { kg += (+x.w) * (+x.r || 0); luar++; }
+      });
+    });
+    const b = kg > 0 ? bandingOf(kg) : null;
+    const angka = [
+      ['Beban terangkat', kg > 0 ? Math.round(kg).toLocaleString('id-ID') : '—', kg > 0 ? 'kg' : ''],
+      ['Set', set, ''],
+      [detik > reps ? 'Total tahan' : 'Total reps', detik > reps ? Math.round(detik / 60 * 10) / 10 : reps, detik > reps ? 'menit' : '']
+    ];
+    return `<div class="pc-head"><h2>Sesi ini</h2></div>
+      <div class="rgrid">${angka.map(([k, v, u]) =>
+        `<div class="rg"><div class="k">${k}</div><div class="v">${v}<span class="u">${u ? ' ' + u : ''}</span></div></div>`).join('')}</div>
+      ${b ? `<div class="banding"><span class="bic"><svg viewBox="0 0 64 64" aria-hidden="true">${ICO[b.ic]}</svg></span>
+        <p>Kira kira setara mengangkat <b>${String(b.n).replace('.', ',')} ${b.t}</b>.</p></div>` : ''}
+      <p class="dnote">Yang dihitung cuma beban luar. Gerakan berat badan tidak ikut, karena porsi badan yang benar benar terangkat beda beda tiap gerakan dan menebaknya cuma membuat angkanya terlihat besar tanpa dasar.</p>`;
   }
 
   /* ---------- ringkasan progres ---------- */
@@ -851,6 +1020,19 @@ window.TRAIN = (function () {
       ? cur.why.map(w => `<div class="adj"><i></i><p>${w}</p></div>`).join('')
       : '';
 
+    /* peta otot sesi hari ini */
+    const ids = cur.slots.reduce((a, s2) => a.concat(s2.ex.map(x => swap[x] || x)), []);
+    const heat = sessionHeat(ids);
+    const hd = heatData(heat);
+    const hEl = $('#tr-heat');
+    if (hEl && window.Muscle) {
+      if (!heatMounted) { Muscle.mount($('#tr-heat-svg')); heatMounted = true; }
+      Muscle.paint($('#tr-heat-svg'), hd, 'all', null);
+      $('#tr-heat-top').innerHTML = heatTop(heat).map(r =>
+        `<span class="hchip" style="--hc:${Muscle.col(r.v)}">${r.label}</span>`).join('');
+    }
+    $('#c-ring').innerHTML = ringkas(saved);
+    $('#c-ring').hidden = !saved;
     $('#c-coach').innerHTML = coachCard(sel);
     $('#c-debt').innerHTML = debtCard(cur);
 
@@ -886,13 +1068,14 @@ window.TRAIN = (function () {
   function wire() {
     const $ = D.$, $$ = D.$$;
 
-    $$('#tr-slots [data-tick]').forEach(b => b.onclick = () => {
+    const SL = '#tr-slots [data-tick], #abs-slots [data-tick]';
+    $$(SL).forEach(b => b.onclick = () => {
       const on = b.getAttribute('aria-pressed') === 'true';
       b.setAttribute('aria-pressed', String(!on));
       b.closest('tr').classList.toggle('done', !on);
       if (!on) startRest(120);
     });
-    $$('#tr-slots [data-pane]').forEach(b => b.onclick = () => {
+    $$('#tr-slots [data-pane], #abs-slots [data-pane]').forEach(b => b.onclick = () => {
       const k = b.dataset.pane, id = b.dataset.id;
       ['p','c','a'].forEach(o => { const el = $('#tp-' + o + '-' + id); if (el && o !== k) el.hidden = true; });
       const el = $('#tp-' + k + '-' + id);
@@ -901,10 +1084,12 @@ window.TRAIN = (function () {
         x.textContent = x.dataset.pane === 'p' ? 'Progres' : x.dataset.pane === 'c' ? 'Cara' : 'Ganti'; });
       if (!el.hidden) b.textContent = 'Tutup';
     });
-    $$('#tr-slots [data-swap]').forEach(b => b.onclick = () => {
+    $$('#tr-slots [data-swap], #abs-slots [data-swap]').forEach(b => b.onclick = () => {
       const base = b.dataset.swap, to = b.dataset.to;
       if (to === base) delete swap[base]; else swap[base] = to;
-      refresh();
+      const diPerut = !!b.closest('#abs-slots');
+      if (diPerut) { $('#c-abs').innerHTML = absCard(); wire(); }
+      else refresh();
       const el = $('#tp-a-' + base); if (el) el.hidden = false;
     });
 
@@ -983,35 +1168,25 @@ window.TRAIN = (function () {
     /* perut harian */
     $$('#abs-mode button').forEach(b => b.onclick = async () => {
       const a = absToday(sel); a.mode = b.dataset.am; st.abs[sel] = a;
-      await persist(); D.$('#c-abs').innerHTML = absCard(); wire();
+      await persist(); $('#c-abs').innerHTML = absCard(); wire();
     });
-    $$('#c-abs [data-ab]').forEach(b => b.onclick = async () => {
-      const a = absToday(sel), id = b.dataset.ab;
-      a.done = a.done || [];
-      const i = a.done.indexOf(id);
-      if (i < 0) a.done.push(id); else a.done.splice(i, 1);
-      st.abs[sel] = a; await persist();
-      D.$('#c-abs').innerHTML = absCard(); wire();
-    });
+    const av = $('#abs-save');
+    if (av) av.onclick = async () => {
+      const a = absToday(sel);
+      const items = readRows('#abs-slots');
+      if (!items.length) { flash('Tandai centang minimal satu set dulu. Yang belum dicentang tidak dihitung.', '#abs-msg'); return; }
+      a.items = items; st.abs[sel] = a;
+      await persist();
+      /* Gambar ulang dulu, baru pesannya ditulis. Kalau dibalik, pesannya
+         ikut terhapus karena kartu perut digambar ulang seluruhnya. */
+      if (D.onChange) D.onChange();
+      flash(`Tersimpan. ${items.length} gerakan perut, ${items.reduce((x, y) => x + y.sets.length, 0)} set. Pola Core ikut direset.`, '#abs-msg');
+    };
 
     /* simpan sesi */
     const sv = $('#tr-save');
     if (sv) sv.onclick = async () => {
-      const items = [];
-      cur.slots.forEach(s => s.ex.forEach(base => {
-        const id = swap[base] || base, e = byId(id);
-        if (!e || !gearOk(id)) return;
-        const rows = $$(`#tr-slots tr[data-ex="${id}"]`);
-        const sets = rows.map(tr => {
-          const o = { done: tr.querySelector('.tick').getAttribute('aria-pressed') === 'true' };
-          tr.querySelectorAll('input[data-f]').forEach(inp => {
-            const v = inp.value === '' ? inp.placeholder : inp.value;
-            o[inp.dataset.f] = v === '' ? null : +v;
-          });
-          return o;
-        }).filter(x => x.done);
-        if (sets.length) items.push({ id:id, tier:tierOf(id), sets:sets });
-      }));
+      const items = readRows('#tr-slots');
       if (!items.length) { flash('Tandai centang minimal satu set dulu. Yang belum dicentang tidak dihitung.'); return; }
       const lama = st.sessions.findIndex(x => x.key === sel);
       const rec = { key:sel, done:true, items:items };
@@ -1026,8 +1201,25 @@ window.TRAIN = (function () {
     if (rs) rs.onclick = () => { clearInterval(rh); $('#tr-rest').classList.remove('on'); };
     if (ra) ra.onclick = () => { rt += 30; $('#tr-rest-t').textContent = fmtT(rt); };
   }
-  function flash(msg) {
-    const el = D.$('#tr-msg'); if (!el) return;
+  /* Baca baris set yang sudah dicentang dari satu wadah. */
+  function readRows(root) {
+    const out = {}, order = [];
+    D.$$(root + ' tr[data-ex]').forEach(tr => {
+      const id = tr.dataset.ex;
+      if (!tr.querySelector('.tick') || tr.querySelector('.tick').getAttribute('aria-pressed') !== 'true') return;
+      const o = { done:true };
+      tr.querySelectorAll('input[data-f]').forEach(inp => {
+        const v = inp.value === '' ? inp.placeholder : inp.value;
+        o[inp.dataset.f] = v === '' ? null : +v;
+      });
+      if (!out[id]) { out[id] = { id:id, tier:tierOf(id), sets:[] }; order.push(id); }
+      out[id].sets.push(o);
+    });
+    return order.map(id => out[id]);
+  }
+
+  function flash(msg, sel2) {
+    const el = D.$(sel2 || '#tr-msg'); if (!el) return;
     el.textContent = msg; el.classList.add('on');
     setTimeout(() => el.classList.remove('on'), 5000);
   }
@@ -1057,7 +1249,16 @@ window.TRAIN = (function () {
 
   function init(deps) { D = deps; return load(); }
 
-  return { init, load, render, sessionOf, allSessions, liftSessions, topDebt, debt,
+  /* Pola besar yang diambil sesi hari ini. Dipakai judul di Beranda. */
+  function todayPatterns(key, mus) {
+    const c = compose(key, mus);
+    const out = [];
+    [2, 3].forEach(i => c.slots[i].ex.forEach(id => patsOf(id).forEach(p => {
+      if (BIG.indexOf(p) >= 0 && out.indexOf(p) < 0) out.push(p); })));
+    return out;
+  }
+
+  return { init, load, render, sessionOf, allSessions, liftSessions, topDebt, debt, todayPatterns,
            renderGear, renderLib, PATS, EXTRA, GEAR, EX,
            /* dipakai uji otomatis, bukan oleh tampilan */
            _compose: compose, _holds: holds, _state: () => st, _hist: hist };

@@ -280,8 +280,7 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .nav button{width:100%;height:var(--nav-h);background:none;border:0;cursor:pointer;
             display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
             color:var(--fg-3);font-size:10px;font-weight:600;letter-spacing:.02em;transition:color .15s ease}
-.nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;
-                stroke-linecap:round;stroke-linejoin:round}
+.nav button svg{width:22px;height:22px;fill:currentColor;stroke:none}
 .nav button[aria-current="page"]{color:var(--accent)}
 .nav button span{display:block}
 
@@ -1075,3 +1074,64 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .trest button{background:rgba(255,255,255,.14);border:0;color:inherit;border-radius:999px;
   padding:7px 12px;font:600 11px 'Poppins',sans-serif;cursor:pointer}
 .trainv .msg.on{color:var(--ok)}
+
+/* ---- tombol catat besar di tiap panel Tubuh ---- */
+.bigadd{width:100%;margin:0 0 14px;background:var(--accent-soft);border:0;color:var(--accent);
+  border-radius:14px;padding:14px;font:600 13px 'Poppins',sans-serif;cursor:pointer}
+.bigadd:hover{background:var(--accent);color:var(--bg)}
+
+/* ---- Profil: jarak dan pembatas yang jelas ---- */
+.sechead{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--fg-3);margin:30px 0 8px;padding:0 2px}
+.sechead:first-child{margin-top:8px}
+.view[data-view="profile"] .card{margin:0 0 12px;padding:18px 17px}
+.view[data-view="profile"] .card-head{margin-bottom:14px}
+.view[data-view="profile"] .field{margin:0 0 14px}
+.view[data-view="profile"] .field:last-child{margin-bottom:0}
+.view[data-view="profile"] .field.half{max-width:calc(50% - 5px)}
+.view[data-view="profile"] .row{display:flex;gap:10px;margin:0 0 14px;align-items:flex-end}
+.view[data-view="profile"] .row .field{flex:1;margin:0;min-width:0}
+.view[data-view="profile"] .row label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.view[data-view="profile"] .btnrow{display:flex;gap:9px;flex-wrap:wrap}
+.view[data-view="profile"] .btnrow .btn{width:auto;flex:0 1 auto}
+.view[data-view="profile"] .field + .note-sm,
+.view[data-view="profile"] .row + .note-sm{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--rule)}
+#g-save{width:100%;margin-top:2px}
+
+/* daftar label dan nilai, bukan .rowitem yang kolomnya 52px */
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+  padding:11px 0;border-top:1px solid var(--rule)}
+.kv:first-child{border-top:0;padding-top:0}
+.kv .k{font-size:12.5px;color:var(--fg-3);white-space:nowrap}
+.kv .v{font-size:13.5px;color:var(--fg);font-weight:600;text-align:right}
+.kv .v small{display:block;font-weight:400;font-size:11.5px;color:var(--fg-3);margin-top:2px}
+
+/* ---- peta otot kecil di tab Latihan ---- */
+.heatmap{max-width:300px;margin:2px auto 0}
+.htop{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.hchip{font:600 10.5px 'IBM Plex Mono',ui-monospace,monospace;padding:5px 10px;border-radius:999px;
+  background:var(--hc);color:var(--bg);filter:saturate(.9)}
+[data-mode="night"] .hchip{color:var(--fg)}
+
+/* ---- ringkasan sesi ---- */
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 12px}
+.rg{background:var(--sunk);border-radius:12px;padding:11px 10px}
+.rg .k{font:600 8.5px 'Poppins',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-3)}
+.rg .v{font:600 19px 'Poppins',sans-serif;margin-top:4px;font-variant-numeric:tabular-nums;line-height:1.1}
+.rg .v .u{font-size:11px;font-weight:500;color:var(--fg-3)}
+.banding{display:flex;align-items:center;gap:13px;background:var(--accent-soft);border-radius:14px;
+  padding:13px 15px;margin:0 0 4px}
+.banding .bic{flex:none;width:44px;height:44px;display:grid;place-items:center}
+.banding .bic svg{width:44px;height:44px;fill:var(--accent)}
+.banding p{margin:0;font-size:13.5px;line-height:1.55;color:var(--fg-2)}
+.banding b{color:var(--fg);font-weight:600}
+
+/* ---- rincian angka yang bisa dibuka ---- */
+.rinci{margin-top:12px;border-top:1px solid var(--rule);padding-top:10px}
+.rinci summary{cursor:pointer;font:600 11.5px 'Poppins',sans-serif;color:var(--fg-3);
+  letter-spacing:.04em;list-style:none}
+.rinci summary::-webkit-details-marker{display:none}
+.rinci summary::after{content:' ›';display:inline-block;transition:transform .2s ease}
+.rinci[open] summary::after{transform:rotate(90deg)}
+.rinci p{margin:10px 0 0;font-size:12.5px;line-height:1.6;color:var(--fg-3)}
+.cb-txt .soft{color:var(--fg-3);font-size:12.5px}
