@@ -34,58 +34,8 @@
     if (wellness && wellness.ok) wellness.data.forEach(d => { m[d.date] = d; });
     return m;
   }
-  function mergedRecovery() {
-    const wm = wellnessMap();
-    const keys = [...new Set(logs.map(l=>l.key).concat(Object.keys(wm)))].sort();
-    return keys.map(k => {
-      const l = logOf(k), w = wm[k] || {};
-      return { key:k,
-        sleep: l.sleep!=null ? l.sleep : (w.sleep_h ?? null),
-        hrv:   l.hrv  !=null ? l.hrv   : (w.hrv ?? null),
-        /* jenis HRV ikut dibawa: SDNN dan rMSSD bukan besaran yang sama, jadi
-           tidak boleh dibandingkan satu sama lain sebagai baseline */
-        hrv_kind: l.hrv!=null ? 'manual' : (w.hrv_kind ?? null),
-        rhr:   l.rhr  !=null ? l.rhr   : (w.rhr ?? null) };
-    });
-  }
 
   /* ================= KESIAPAN ================= */
-  function readiness(dayKey) {
-    const day = dayKey || sel;
-    const rec = mergedRecovery().filter(r => r.key <= day);
-    const hist = rec.slice(-30);
-    const pick = f => {
-      const t = rec.find(r => r.key === day);
-      if (t && t[f] != null) return t[f];
-      const back = rec.filter(r => r[f]!=null).slice(-1)[0];
-      return back ? back[f] : null;
-    };
-    const sleep = pick('sleep'), hrv = pick('hrv'), rhr = pick('rhr');
-    /* Baseline HRV hanya boleh dibangun dari jenis yang sama. Kalau sumber
-       datanya pernah berpindah dari SDNN ke rMSSD, riwayat lama tidak dipakai. */
-    const todayKind = (rec.find(r => r.key === day) || {}).hrv_kind || null;
-    const hrvHist = hist.filter(r => r.hrv != null && (!todayKind || !r.hrv_kind || r.hrv_kind === todayKind))
-                        .map(r => r.hrv);
-    const rhrHist = hist.map(r=>r.rhr).filter(v=>v!=null);
-    /* Di bawah 5 catatan, baseline-nya adalah angka itu sendiri — perbandingan
-       jadi selalu "normal" dan skornya bohong. Komponen itu dilewati dulu. */
-    const MIN = 5;
-    const bHrv = hrvHist.length >= MIN ? median(hrvHist) : null;
-    const bRhr = rhrHist.length >= MIN ? median(rhrHist) : null;
-    const target = goals.sleep_target_h || 7;
-    const parts = [];
-    if (sleep != null) parts.push([0.40, clamp(100 - Math.max(0,target-sleep)*30, 0, 100)]);
-    if (hrv != null && bHrv) parts.push([0.35, clamp(100 + (hrv/bHrv-1)*200, 40, 112)]);
-    if (rhr != null && bRhr) parts.push([0.25, clamp(100 + (1-rhr/bRhr)*300, 40, 112)]);
-    if (!parts.length) return { score:null, sleep, hrv, rhr, need:[] };
-    const wsum = parts.reduce((s,p)=>s+p[0],0);
-    const score = Math.round(clamp(parts.reduce((s,p)=>s+p[0]*p[1],0)/wsum, 0, 100));
-    const need = [];
-    if (sleep == null) need.push('tidur');
-    if (!bHrv) need.push(hrv==null ? 'HRV' : 'HRV ('+hrvHist.length+'/'+MIN+' hari)');
-    if (!bRhr) need.push(rhr==null ? 'resting HR' : 'resting HR ('+rhrHist.length+'/'+MIN+' hari)');
-    return { score, sleep, hrv, rhr, need };
-  }
   /* Zona form intervals.icu. Batasnya default intervals.icu, jadi kalau Rausyan
      membuka intervals.icu dan Areté berdampingan, keduanya bilang hal yang sama. */
   const FORM_ZONES = [
@@ -99,22 +49,22 @@
 
   /* Skor untuk SATU hari, tanpa mewarisi angka hari sebelumnya. Dipakai kalender:
      hari yang tidak punya data sendiri harus kosong, bukan ikut warna kemarin. */
+  /* Lingkaran di kalender dulu memakai skor kesiapan. Skor itu sudah dicabut,
+     jadi yang dipakai sekarang beban latihan harian: load lari dari
+     intervals.icu ditambah dosis angkatan dari catatan sendiri.
+     Diskalakan ke 0 sampai 100 memakai hari terberat 90 hari terakhir. */
   function dayScore(k) {
-    if (k > today) return null;
-    const rec = mergedRecovery();
-    const d = rec.find(r => r.key === k);
-    if (!d || (d.sleep==null && d.hrv==null && d.rhr==null)) return null;
-    const hist = rec.filter(r => r.key <= k).slice(-30);
-    const hv = hist.map(r=>r.hrv).filter(v=>v!=null), rv = hist.map(r=>r.rhr).filter(v=>v!=null);
-    const bH = hv.length>=5 ? median(hv) : null, bR = rv.length>=5 ? median(rv) : null;
-    const tg = goals.sleep_target_h || 7, parts = [];
-    if (d.sleep!=null) parts.push([0.40, clamp(100-Math.max(0,tg-d.sleep)*30,0,100)]);
-    if (d.hrv!=null && bH) parts.push([0.35, clamp(100+(d.hrv/bH-1)*200,40,112)]);
-    if (d.rhr!=null && bR) parts.push([0.25, clamp(100+(1-d.rhr/bR)*300,40,112)]);
-    if (!parts.length) return null;
-    const ws = parts.reduce((s,p)=>s+p[0],0);
-    return Math.round(clamp(parts.reduce((s,p)=>s+p[0]*p[1],0)/ws,0,100));
+    const acts = (activities && activities.ok) ? activities.data : [];
+    const hari = {};
+    acts.forEach(a => { if (a.date) hari[a.date] = (hari[a.date] || 0) + (a.load || 0); });
+    TRAIN.allSessions().forEach(x => { hari[x.key] = (hari[x.key] || 0) + (x.load || 0); });
+    const vals = Object.keys(hari).map(x => hari[x]);
+    if (!vals.length) return null;
+    const mx = Math.max.apply(null, vals);
+    if (!hari[k]) return null;
+    return Math.max(4, Math.round(100 * hari[k] / (mx || 1)));
   }
+
 
   const scoreColor = s => s==null ? 'var(--fg-3)' : s>=75 ? 'var(--good)' : s>=55 ? 'var(--mid)' : 'var(--low)';
 
@@ -144,159 +94,48 @@
     return (Math.round(n * 10) / 10).toString();
   };
 
-  function recoveryCue(r) {
-    const target = goals.sleep_target_h || 7;
-    const rec = mergedRecovery().filter(x => x.key <= sel).slice(-30);
-    const bH = median(rec.map(x=>x.hrv).filter(v=>v!=null));
-    const bR = median(rec.map(x=>x.rhr).filter(v=>v!=null));
-    const usedHrv = r.hrv != null && !r.need.some(n=>n.startsWith('HRV'));
-    const usedRhr = r.rhr != null && !r.need.some(n=>n.startsWith('resting'));
-    const signals = [];
 
-    if (r.sleep != null) {
-      const deficit = target - r.sleep;
-      if (deficit >= 0.5) {
-        signals.push({
-          type:'sleep',
-          rank:deficit >= 1.5 ? 4 : 2,
-          text:`tidurmu baru ${briefNum(r.sleep)} jam`
-        });
-      }
-    }
 
-    if (usedHrv && bH) {
-      const drop = Math.round((1 - r.hrv / bH) * 100);
-      if (drop >= 10) {
-        signals.push({
-          type:'hrv',
-          rank:drop >= 20 ? 4 : 3,
-          text:`HRV-mu ${Math.round(r.hrv)} ms, biasanya sekitar ${Math.round(bH)}`
-        });
-      }
-    }
 
-    if (usedRhr && bR) {
-      const rise = Math.round(r.rhr - bR);
-      if (rise >= 3) {
-        signals.push({
-          type:'rhr',
-          rank:rise >= 7 ? 4 : 3,
-          text:`resting HR-mu naik ${rise} bpm dari biasanya`
-        });
-      }
-    }
-
-    signals.sort((a,b) => b.rank - a.rank);
-    return signals[0] || { type:'none', rank:0, text:'' };
-  }
-
-  function doseLine(w, lvl, r) {
-    const cue = recoveryCue(r);
-    const ada = cue.type !== 'none';
-
-    if (!w) {
-      return lvl === 'lo' ? `Hari ini jangan tambah latihan di luar rencana.`
-                          : `Jalankan sesi sesuai rencana, tidak perlu ditambah sendiri.`;
-    }
-
-    if (w.kind === 'st') {
-      if (lvl === 'hi') {
-        return ada ? `${w.title} pakai beban biasa, tapi ${cue.text}, jadi tidak perlu naik beban hari ini.`
-                   : `${w.title} pakai beban penuh. Kalau semua set masih rapi dengan sekitar dua reps tersisa, catat progresi 2,5 kg untuk minggu depan.`;
-      }
-      if (lvl === 'mid') {
-        return ada ? `${w.title} tetap jalan dengan beban terakhir, tapi ${cue.text}, jadi jangan naik beban hari ini.`
-                   : `${w.title} pakai beban yang sama dengan minggu lalu, jangan naik beban hari ini.`;
-      }
-      return ada ? `${w.title} turunkan beban 10 sampai 15 persen karena ${cue.text}. Set dan repsnya tetap.`
-                 : `${w.title} turunkan beban 10 sampai 15 persen. Set dan repsnya tetap.`;
-    }
-
-    if (w.kind === 'run') {
-      if (/kualitas/i.test(w.title)) {
-        if (lvl === 'hi') {
-          return ada ? `Sesi kualitas tetap jalan sesuai plan coach, tapi ${cue.text}, jadi jangan tambah repetisi atau pace sendiri.`
-                     : `Sesi kualitas jalan sesuai plan coach. Tidak perlu ditambah walaupun badan terasa enak.`;
-        }
-        if (lvl === 'mid') {
-          return ada ? `Sesi kualitas tetap ikuti plan coach, tapi ${cue.text}. Pakai pemanasan untuk cek badan, dan jangan dipaksa kalau effort terasa jauh lebih berat dari biasanya.`
-                     : `Sesi kualitas ikuti plan coach. Pakai pemanasan untuk cek badan, dan jangan dipaksa kalau effort terasa jauh lebih berat dari biasanya.`;
-        }
-        return ada ? `Sesi kualitas jangan dipaksa hari ini karena ${cue.text}. Mulai easy dulu dan berhenti kalau badan tetap berat.`
-                   : `Sesi kualitas jangan dipaksa hari ini. Mulai easy dulu dan berhenti kalau badan tetap berat.`;
-      }
-      if (/long/i.test(w.title)) {
-        if (lvl === 'hi') {
-          return ada ? `Long run tetap jalan sesuai plan coach, tapi ${cue.text}, jadi jaga effort easy dan jangan tambah durasi.`
-                     : `Long run jalan sesuai plan coach dan tetap easy sampai selesai.`;
-        }
-        if (lvl === 'mid') {
-          return ada ? `Long run tetap jalan, tapi ${cue.text}, jadi ambil durasi paling pendek dari rentang yang dikasih coach.`
-                     : `Long run tetap jalan, ambil durasi paling pendek dari rentang yang dikasih coach.`;
-        }
-        return ada ? `Long run jangan dipaksa penuh karena ${cue.text}. Cukup easy 30 sampai 45 menit, lalu lihat lagi respons badan setelahnya.`
-                   : `Long run jangan dipaksa penuh hari ini. Cukup easy 30 sampai 45 menit, lalu lihat lagi respons badan setelahnya.`;
-      }
-      if (lvl === 'hi') {
-        return ada ? `Easy run tetap easy, dan ${cue.text}, jadi tidak perlu cari pace.`
-                   : `Easy run tetap easy. Kondisi bagus bukan alasan untuk ngebut.`;
-      }
-      if (lvl === 'mid') {
-        return ada ? `Easy run tetap jalan, tapi ${cue.text}, jadi jaga effort ringan dan tidak perlu tambah durasi.`
-                   : `Easy run tetap jalan, jaga effort ringan dan tidak perlu tambah durasi.`;
-      }
-      return ada ? `Easy run hari ini cukup 20 sampai 30 menit karena ${cue.text}. Berhenti kalau 10 menit awal masih terasa berat.`
-                 : `Easy run hari ini cukup 20 sampai 30 menit. Berhenti kalau 10 menit awal masih terasa berat.`;
-    }
-
-    if (lvl === 'lo') {
-      return ada ? `Slot fleksibel hari ini cukup mobility karena ${cue.text}. Tidak perlu tambah latihan beban.`
-                 : `Slot fleksibel hari ini cukup mobility. Tidak perlu tambah latihan beban.`;
-    }
-    return `Slot fleksibel: kalau tidak ada sesi coach, ambil Sesi A atau B yang belum dikerjakan minggu ini.`;
-  }
-
-  function dayTitle(score, nama) {
-    return score >= 80 ? `Badanmu siap dipakai, ${nama}`
-         : score >= 65 ? `Kondisimu cukup, ${nama}`
-         : score >= 50 ? `Jangan terlalu dipaksa hari ini, ${nama}`
-                       : `Badanmu belum pulih, ${nama}`;
-  }
-
+  /* Vonis harian dihitung dari beban otot dan status latihan, bukan dari
+     skor pemulihan. Recovery sudah dicabut: Zepp lebih baik untuk tidur,
+     dan skor kesiapan yang cuma dari durasi tidur menyesatkan. */
   function verdict() {
-    const v = logOf(sel), r = readiness(sel);
     const nama = profile.name || 'Rausyan';
-    const dd = v.daily || {};
-    const dailyDone = ['abs','calf','hip'].filter(k=>dd[k]).length;
-    const trained = !!(v.st || v.run);
-    const kosong = !Object.keys(v).length;
     const hariIni = sel === today;
-    const w = PLAN.week[UI.dow(sel)];
+    const m = musData;
+    const w = fitRows() ? fitRows()[fitRows().length - 1] : null;
+    const sesi = TRAIN.sessionOf(sel);
+    const sudah = sesi && sesi.done;
 
-    if (kosong && r.score == null) {
-      return { t: hariIni ? `Belum ada catatan hari ini, ${nama}` : 'Hari ini kosong',
-               s: hariIni ? 'Isi satu angka saja dulu, berat badan atau jam tidur. Sisanya menyusul.'
-                          : 'Tidak ada yang tercatat di tanggal ini.' };
+    if (!m || !m.reg) {
+      return { t: `Selamat datang, ${nama}`,
+               s: 'Sambungkan intervals.icu di Profil, lalu peta beban otot dan penyusun sesi mulai jalan.' };
     }
-    if (trained && dailyDone === 3) {
-      return { t: `Hari yang lengkap, ${nama}`,
-               s: `Sesi utama jalan dan daily track selesai semua. Inilah yang kalau diulang cukup sering akan kelihatan hasilnya di bulan ketiga.` };
+    const top = m.reg.slice().sort((a, b) => b.total - a.total)[0];
+    const berat = m.reg.filter(r => r.total >= 70).map(r => r.label);
+    const debt = TRAIN.topDebt(sel, 1)[0];
+    const lama = d => d.never ? 'belum pernah tercatat' : d.d + ' hari tanpa beban nyata';
+
+    if (sudah) {
+      return { t: `Sesi hari ini beres, ${nama}`,
+               s: debt ? `Pola yang masih paling lama menganggur sekarang ${debt.p}, ${lama(debt)}. Itu yang diambil sesi berikutnya.`
+                       : 'Sepuluh pola wajib sudah tersentuh semua minggu ini.' };
     }
-    if (trained) {
-      return { t: `Sesi utama sudah beres, ${nama}`,
-               s: dailyDone ? `Daily track baru ${dailyDone} dari 3. Sisanya sekitar lima menit, kerjakan sebelum tidur.`
-                            : `Daily track belum disentuh. Abs, calf, dan hip totalnya 15 sampai 20 menit dan bisa dikerjakan di kamar.` };
+    if (berat.length >= 3) {
+      return { t: hariIni ? `Kakimu sedang menanggung banyak, ${nama}` : 'Beban otot sedang tinggi',
+               s: `${berat.slice(0, 3).join(', ')} semuanya di atas 70. Sesi hari ini otomatis menghindari pola yang memakai otot itu.` };
     }
-    if (r.score != null) {
-      const lvl = r.score >= 80 ? 'hi' : r.score >= 50 ? 'mid' : 'lo';
-      /* Angka skornya sudah tampil besar di ring tepat di bawah kalimat ini,
-         jadi tidak diulang di sini. */
-      return { t: hariIni ? dayTitle(r.score, nama) : `${dayTitle(r.score, '').replace(/,\s*$/,'')} waktu itu`,
-               s: `${doseLine(w, lvl, r)}${lvl === 'hi' ? ' Daily track tetap dikerjakan malamnya.' : ''}` };
+    if (top && top.total < 25) {
+      return { t: hariIni ? `Badanmu segar, ${nama}` : 'Beban otot rendah',
+               s: debt ? `Otot terberat cuma di ${top.total}. Hari yang tepat untuk ${debt.p}, ${lama(debt)}.`
+                       : `Otot terberat cuma di ${top.total}. Tidak ada yang perlu ditahan hari ini.` };
     }
-    return { t: `Belum ada latihan hari ini, ${nama}`,
-             s: `Rencananya ada di bawah. Kalau waktumu mepet, kerjakan daily track saja, itu yang paling tidak boleh bolong.` };
+    return { t: hariIni ? `Kondisimu jalan, ${nama}` : 'Kondisi sedang',
+             s: (w && w.form != null ? `Form ${w.form > 0 ? '+' : ''}${w.form}. ` : '')
+                + (debt ? `${debt.p} paling lama menganggur, ${lama(debt)}, dan itu yang diambil sesi hari ini.` : 'Sesi hari ini menyesuaikan diri dengan beban otot terakhir.') };
   }
+
 
   /* ================= TARGET ================= */
   function renderTargets() {
@@ -326,112 +165,7 @@
   /* Narasi kesiapan. Tugasnya cuma dua: dari mana angkanya, dan apa yang
      angka itu ceritakan yang tidak kelihatan dari satu hari saja. Instruksi
      latihan sudah ada di kalimat coach di atas, jadi tidak diulang di sini. */
-  function readinessNarrative(r) {
-    const tgt = goals.sleep_target_h || 7;
-    const P = [];
 
-    if (r.score == null) {
-      P.push(`Skor belum bisa dihitung karena belum ada satu pun angka pemulihan hari ini. Yang dibutuhkan cuma <b>jam tidur</b>, <b>HRV</b>, dan <b>resting HR</b>.`);
-      P.push(`Ketik manual lewat Catat → Badan, atau biarkan masuk sendiri kalau jam-mu sudah tersambung ke intervals.icu.`);
-      return P;
-    }
-
-    const rec = mergedRecovery().filter(x => x.key <= sel).slice(-30);
-    const bH = median(rec.map(x=>x.hrv).filter(v=>v!=null));
-    const bR = median(rec.map(x=>x.rhr).filter(v=>v!=null));
-    const usedHrv = r.hrv != null && !r.need.some(n=>n.startsWith('HRV'));
-    const usedRhr = r.rhr != null && !r.need.some(n=>n.startsWith('resting'));
-
-    /* baris 1 — asal angkanya, sependek mungkin */
-    const bits = [];
-    if (r.sleep != null) bits.push(`tidur <b>${r.sleep} jam</b>${r.sleep < tgt ? ` (target ${tgt})` : ''}`);
-    if (usedHrv) bits.push(`HRV <b>${r.hrv}</b> vs biasanya ${Math.round(bH)}`);
-    if (usedRhr) bits.push(Math.round(bR) === Math.round(r.rhr)
-      ? `resting HR <b>${r.rhr}</b>, persis kebiasaanmu`
-      : `resting HR <b>${r.rhr}</b> vs biasanya ${Math.round(bR)}`);
-    P.push(`Skor <b>${r.score}</b> dari ${bits.join(', ')}.`);
-
-    /* baris 2 — yang tidak kelihatan dari satu hari: arah dan penyebab */
-    const hist = [];
-    for (let k = 6; k >= 0; k--) {
-      const d = new Date(UI.parse(sel).getTime() - k*86400000);
-      const sc = dayScore(keyOf(d));
-      if (sc != null) hist.push(sc);
-    }
-    const sl7 = rec.slice(-7).map(x=>x.sleep).filter(v=>v!=null);
-    const slAvg = sl7.length >= 3 ? avg(sl7) : null;
-    const trend = hist.length >= 4 ? Math.round(avg(hist.slice(0,-1))) : null;
-
-    const T = [];
-    if (trend != null) {
-      const d = r.score - trend;
-      T.push(Math.abs(d) < 4 ? `Rata rata seminggu ${trend}, jadi hari ini tidak menyimpang.`
-           : d > 0 ? `Rata rata seminggu ${trend}, hari ini ${d} poin di atasnya. Arahnya naik.`
-                   : `Rata rata seminggu ${trend}, hari ini ${Math.abs(d)} poin di bawahnya.`);
-    }
-    if (slAvg != null && slAvg < tgt - 0.5) {
-      T.push(`Tidurmu rata rata ${slAvg.toFixed(1)} jam seminggu ini, kurang ${(tgt-slAvg).toFixed(1)} jam dari target. Itu yang menahan skormu, bukan latihannya.`);
-    } else if (slAvg != null) {
-      T.push(`Tidur rata rata ${slAvg.toFixed(1)} jam seminggu ini, sudah di sekitar target.`);
-    }
-    if (T.length) P.push(T.join(' '));
-
-    /* baris 3 — apa yang belum ikut dihitung, satu kalimat saja */
-    if (r.need.length) {
-      P.push(`${r.need.join(' dan ')} belum ikut dihitung, baru dipakai setelah ada 5 hari tercatat sebagai pembanding.`);
-    }
-    return P;
-  }
-
-  function renderHero() {
-    const r = readiness(sel);
-    const C = 2*Math.PI*38;
-    $('#ring').innerHTML = r.score == null
-      ? `<svg viewBox="0 0 88 88"><circle class="bg" cx="44" cy="44" r="38"/></svg><b style="font-size:15px;color:var(--fg-3)">—</b>`
-      : `<svg viewBox="0 0 88 88"><circle class="bg" cx="44" cy="44" r="38"/>
-         <circle class="fg" cx="44" cy="44" r="38" stroke="${scoreColor(r.score)}"
-           stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-r.score/100)).toFixed(1)}"/></svg>
-         <b>${r.score}</b><small>skor</small>`;
-
-    /* Label harus menyebut sinyal yang BENAR-BENAR dipakai hari itu. Ring besar
-       bertuliskan "Kesiapan" padahal isinya cuma lama tidur akan membuat angka
-       ini lebih dipercaya daripada yang pantas. */
-    const dipakai = [];
-    if (r.sleep != null) dipakai.push('tidur');
-    if (r.hrv != null && !r.need.some(n=>n.startsWith('HRV'))) dipakai.push('HRV');
-    if (r.rhr != null && !r.need.some(n=>n.startsWith('resting'))) dipakai.push('resting HR');
-    const daftar = dipakai.length === 0 ? ''
-      : dipakai.length === 1 ? dipakai[0]
-      : dipakai.slice(0,-1).join(', ') + ' dan ' + dipakai[dipakai.length-1];
-
-    const lab = r.score==null ? 'Belum terbaca'
-      : dipakai.length >= 3 ? 'Kesiapan'
-      : dipakai.length === 1 && dipakai[0] === 'tidur' ? 'Skor tidur'
-      : 'Skor ' + daftar;
-    $('#ready-lab').textContent = lab;
-    $('#ready-onel').textContent = r.score==null
-      ? 'Butuh tidur, HRV, atau resting HR.'
-      : dipakai.length >= 3
-        ? 'Dari tidur, HRV, dan resting HR.'
-        : `Hanya dari ${daftar}. ${r.need.filter(n=>n!=='tidur').join(' dan ')} belum ikut, jadi ini belum gambaran pemulihan utuh.`;
-    $('#ready-say').querySelector('.cb-txt').innerHTML =
-      readinessNarrative(r).map(p=>`<p>${p}</p>`).join('');
-
-    const rec = mergedRecovery().filter(x=>x.key<=sel).slice(-7);
-    const bars = $('#sleepbars'), tgt = goals.sleep_target_h || 7;
-    if (rec.filter(x=>x.sleep!=null).length < 2) bars.className = 'sleepbars empty';
-    else {
-      bars.className = 'sleepbars';
-      const mx = Math.max(tgt, ...rec.map(x=>x.sleep||0));
-      bars.innerHTML = rec.map(x => {
-        const h = x.sleep ? Math.max(6,(x.sleep/mx)*44) : 3;
-        const cls = x.key===sel ? 'today' : (x.sleep>=tgt-0.5 ? 'ok' : '');
-        return `<div class="${cls}" style="height:${h.toFixed(0)}px" data-d="${UI.shortDate(x.key).dow[0]}" title="${x.key}: ${x.sleep ?? '—'} j"></div>`;
-      }).join('');
-    }
-    const mini=(k,v,u)=>`<div><div class="k">${k}</div><div class="v${v==null?' none':''}">${v==null?'belum':v}${v!=null&&u?`<i>${u}</i>`:''}</div></div>`;
-    $('#ready-mini').innerHTML = mini('Tidur',r.sleep,'j')+mini('HRV',r.hrv,'ms')+mini('Resting HR',r.rhr,'bpm');
-  }
 
   /* ================= PETA BEBAN OTOT =================
      Satu-satunya tempat di mana beban lari dari intervals.icu dan beban
@@ -439,9 +173,7 @@
      lari, intervals.icu tidak melihat sesi gym, Hevy tidak melihat keduanya. */
   let musSrc = 'all', musSel = null, musData = null, musMounted = false;
 
-  /* Catatan angkatan. Tab Latihan belum ada, jadi masih kosong.
-     Bentuknya sudah final supaya nanti cukup diisi, bukan diubah. */
-  function liftSessions() { return []; }
+  const liftSessions = () => (window.TRAIN ? TRAIN.liftSessions() : []);
 
   const musAgo = k => Math.round((UI.parse(sel) - UI.parse(k)) / 86400000);
 
@@ -553,6 +285,12 @@
     Muscle.paint($('#mus-svg'), musData, musSrc, musSel);
   }
 
+  /* ================= LATIHAN ================= */
+  function renderTrain() {
+    if (!window.TRAIN) return;
+    TRAIN.render({ sel: sel, mus: musData });
+  }
+
   /* ================= TRAINING STATUS ================= */
   function connectBlock(reason, short) {
     const msg = {
@@ -588,29 +326,6 @@
     return { runs:runs.length, km, load, loadPerKm:km > 0 && load > 0 ? load/km : null };
   }
 
-  function recoveryTrend() {
-    const rec = mergedRecovery().filter(x => x.key <= sel);
-    if (!rec.length) return { state:'unknown' };
-    const cutoff = keyOf(new Date(UI.parse(sel).getTime() - 6*86400000));
-    const recent = rec.filter(x => x.key >= cutoff);
-    const before = rec.filter(x => x.key < cutoff).slice(-21);
-
-    const metric = f => {
-      const a = recent.map(x=>x[f]).filter(v=>v!=null).slice(-4);
-      const b = before.map(x=>x[f]).filter(v=>v!=null);
-      if (a.length < 3 || b.length < 7) return null;
-      return { recent:avg(a), base:median(b) };
-    };
-
-    const h = metric('hrv'), r = metric('rhr');
-    if (!h && !r) return { state:'unknown' };
-    const hPct = h ? ((h.recent / h.base) - 1) * 100 : null;
-    const rDiff = r ? r.recent - r.base : null;
-    const down = (hPct != null && hPct <= -10) + (rDiff != null && rDiff >= 3);
-    if (down >= 2) return { state:'down', hPct, rDiff };
-    if ((hPct != null && hPct <= -12) || (rDiff != null && rDiff >= 4)) return { state:'watch', hPct, rDiff };
-    return { state:'stable', hPct, rDiff };
-  }
 
   function trainingAnalysis(rows) {
     const w = rows[rows.length-1];
@@ -621,7 +336,6 @@
     const form7 = r7 && r7.form != null ? +(w.form-r7.form).toFixed(1) : null;
     const ctl14 = r14 && r14.ctl != null ? +(w.ctl-r14.ctl).toFixed(1) : null;
     const hari = UI.daysUntil(goals.race_date);
-    const rec = recoveryTrend();
     const run7 = runWindowStats(6,0);
     const runPrev = runWindowStats(13,7);
 
@@ -631,9 +345,9 @@
     if (w.form != null && w.form < -30) {
       state = 'HIGH_LOAD';
       headline = 'Beban sedang sangat tinggi.';
-    } else if ((rec.state === 'down' || rec.state === 'watch') && atl7 != null && atl7 > 1.5) {
+    } else if (atl7 != null && atl7 > 3 && ctl7 != null && ctl7 < 0.5) {
       state = 'LOAD_NOT_ABSORBING';
-      headline = 'Load naik, recovery mulai tertinggal.';
+      headline = 'Fatigue naik tapi fitness tidak ikut.';
     } else if (hari >= 0 && hari <= 14 && atl7 != null && form7 != null && atl7 <= -1.5 && form7 >= 1.5 && (ctl7 == null || ctl7 >= -3)) {
       state = 'TAPERING';
       headline = 'Taper bergerak sesuai arah.';
@@ -672,10 +386,6 @@
       context = `${hari} hari menuju lomba. Ini sudah masuk jendela taper, jadi arah yang dicari adalah Fatigue turun sementara Fitness tetap terjaga.`;
     } else if (hari >= 15 && hari <= 21) {
       context = `${hari} hari menuju lomba. Belum perlu mengejar kondisi fresh sekarang. Dalam beberapa hari ke depan, Fatigue mulai turun tanpa Fitness ikut jatuh cepat.`;
-    } else if (rec.state === 'down') {
-      context = `Load boleh terlihat bagus di grafik, tapi recovery beberapa hari terakhir ikut melemah. Jangan tambah beban di luar plan sampai HRV dan resting HR kembali mendekati biasanya.`;
-    } else if (rec.state === 'watch') {
-      context = `Recovery mulai memberi sinyal yang perlu dipantau. Belum perlu mengubah plan dari satu angka, tapi jangan menambah load sendiri.`;
     } else if (run7 && runPrev && runPrev.km >= 10 && runPrev.load > 0 && run7.km > 0 && run7.load > 0) {
       const kmPct = ((run7.km/runPrev.km)-1)*100;
       const loadPct = ((run7.load/runPrev.load)-1)*100;
@@ -1081,83 +791,6 @@
   }
 
   /* ================= RENCANA LATIHAN ================= */
-  function renderPlan() {
-    const v = logOf(sel);
-    const mode = v.st_mode || null;
-    const dow = UI.dow(sel);
-    const w = PLAN.week[dow];
-    const body = $('#plan-body');
-    $('#plan-reset').hidden = !mode;
-
-    /* Hari lari murni: tidak ada pertanyaan, hanya daily-track. */
-    if (w.st === null) { body.innerHTML = header(w, null) + trackBlock(); return; }
-
-    if (!mode) {
-      body.innerHTML = header(w, null) + ask1();
-      wireAsk();
-      return;
-    }
-    const p = PLAN.today(dow, sel, mode);
-    body.innerHTML = header(w, mode) + (p.session ? table(p.session) : coachNote()) + trackBlock();
-    wireLoads();
-  }
-
-  function header(w, mode) {
-    const tag = mode === 'coach' ? '<span class="modetag coach">Sesi coach</span>'
-              : mode === 'gym'  ? '<span class="modetag">Di gym</span>'
-              : mode === 'home' ? '<span class="modetag">Di rumah</span>' : '';
-    return `<div class="modebar">${tag}<span class="pc-hint">${w.title}</span></div>`;
-  }
-  function ask1() {
-    return `<p class="ask">Hari ini ada sesi ST offline dengan coach?</p>
-      <div class="askrow"><button class="askbtn yes" data-ask="coach" type="button">Ya, dengan coach</button>
-      <button class="askbtn" data-ask="q2" type="button">Tidak</button></div>`;
-  }
-  function ask2() {
-    return `<p class="ask">Bisa ke gym hari ini?</p>
-      <div class="askrow"><button class="askbtn yes" data-ask="gym" type="button">Ya, ke gym</button>
-      <button class="askbtn" data-ask="home" type="button">Tidak, di rumah</button></div>`;
-  }
-  function coachNote() {
-    return `<p class="note-sm">Isi sesi ditentukan coach. Daily-track di bawah tetap dikerjakan. Bagian itu yang menggerakkan Shock Absorption dan Landing Control di Stryd.</p>`;
-  }
-  function table(list) {
-    const v = logOf(sel), loads = v.loads || {};
-    return `<div class="exwrap"><table class="extable">
-      <thead><tr><th>Gerakan</th><th class="num">Beban</th><th class="num">Reps</th><th class="num">Set</th></tr></thead>
-      <tbody>${list.map((x,i)=>`<tr>
-        <td><div class="mg">${x.mg}</div><div class="nm">${x.name}</div>${x.swapped?`<div class="sw">pengganti ${x.from}</div>`:''}</td>
-        <td class="num"><input type="text" inputmode="decimal" placeholder="${x.load}" value="${loads[i]??''}" data-load="${i}"></td>
-        <td class="num">${x.reps}</td><td class="num">${x.sets}</td></tr>`).join('')}</tbody></table></div>`;
-  }
-  function trackBlock() {
-    const p = PLAN.today(UI.dow(sel), sel, logOf(sel).st_mode);
-    const d = logOf(sel).daily || {};
-    const dose = { full:'dosis penuh', light:'dosis ringan', moderate:'dosis sedang' }[p.day.dose];
-    const trk = (key,label,list) => `<button class="trk" data-track="${key}" type="button" aria-pressed="${!!d[key]}">
-        <span class="box"></span><span class="t"><span class="n">${label}</span>
-        <span class="d">${list.map(x=>x[1]).join(' · ')}</span></span></button>`;
-    return `<div class="pc-head" style="margin:18px 0 9px"><h2>Daily-track — ${dose}</h2></div>
-      <div class="track">${trk('abs','Abs',p.track.abs)}${trk('calf','Calf · ankle',p.track.calf)}${trk('hip','Hip flexor · glute',p.track.hip)}</div>`;
-  }
-  function wireAsk() {
-    $$('#plan-body [data-ask]').forEach(b => b.onclick = async () => {
-      const a = b.dataset.ask;
-      if (a === 'q2') { $('#plan-body').innerHTML = header(PLAN.week[UI.dow(sel)], null) + ask2(); wireAsk(); return; }
-      const v = Object.assign({}, logOf(sel));
-      v.st_mode = a; v.updated_at = new Date().toISOString();
-      await saveLog(v);
-    });
-  }
-  function wireLoads() {
-    $$('#plan-body [data-load]').forEach(inp => inp.onchange = async () => {
-      const v = Object.assign({}, logOf(sel));
-      v.loads = Object.assign({}, v.loads);
-      if (inp.value.trim()) v.loads[inp.dataset.load] = inp.value.trim(); else delete v.loads[inp.dataset.load];
-      v.updated_at = new Date().toISOString();
-      await saveLog(v);
-    });
-  }
 
   /* ================= LARI TERAKHIR ================= */
   const RUNTYPE = t => /run/i.test(t||'');
@@ -1167,6 +800,18 @@
     if (!activities || !activities.ok) { el.innerHTML = connectBlock(activities && activities.reason, true); return; }
     const runs = activities.data.filter(a=>RUNTYPE(a.type) && a.date<=sel).sort((a,b)=>a.start<b.start?1:-1);
     el.innerHTML = runs.length ? actCard(runs[0]) : `<p class="empty-note">Belum ada aktivitas lari.</p>`;
+  }
+  function renderRunList() {
+    const el = $('#run-list'); if (!el) return;
+    if (!activities || !activities.ok) { el.innerHTML = ''; return; }
+    const runs = activities.data.filter(a => RUNTYPE(a.type) && a.date <= sel)
+      .sort((a, b) => a.start < b.start ? 1 : -1).slice(1, 7);
+    el.innerHTML = runs.length ? runs.map(a => {
+      const dt = UI.shortDate(a.date);
+      return `<div class="rowitem"><div class="d">${dt.dow}<br>${dt.dm}</div>
+        <div class="m">${a.km != null ? '<b>' + a.km + '</b> km · ' : ''}${UI.pace(a.pace_s_per_km)}${a.load != null ? ' · load ' + a.load : ''}</div>
+        <div></div></div>`;
+    }).join('') : '';
   }
   function actCard(a) {
     return `<div class="act"><div class="top"><span class="nm">${a.name||'Lari'}</span><span class="dt">${UI.fmt(a.date)}</span></div>
@@ -1180,13 +825,12 @@
 
   /* ================= INSIGHT ================= */
   function renderInsight() {
-    const p = PLAN.today(UI.dow(sel), sel, logOf(sel).st_mode);
     let lastPhotoDays = null;
     if (photos.length) {
       const last = photos.map(x=>x.key.slice(0,10)).sort().pop();
       lastPhotoDays = Math.round((UI.parse(sel)-UI.parse(last))/86400000);
     }
-    const list = Insight.build({ logs, goals, plan:p, dateKey:sel, lastPhotoDays,
+    const list = Insight.build({ logs, goals, plan:null, dateKey:sel, lastPhotoDays,
       wellness: fitRows() });
     $('#c-insight').hidden = !list.length;
     $('#insight-body').innerHTML = list.slice(0,4)
@@ -1199,250 +843,52 @@
   const series = (f,n) => logs.slice(-(n||30)).filter(l=>l.value[f]!=null)
                               .map(l=>({v:l.value[f], label:UI.shortDate(l.key).dm}));
 
-  /* ================= TIDUR & PEMULIHAN =================
-     Catatan penting soal tanggal: satu baris log tanggal K berisi tidur
-     MALAM SEBELUMNYA, yaitu tidur yang dimulai malam K-1 dan berakhir pagi K.
-     Sama seperti Zepp. Jadi kartu tanggal 9 menunjukkan tidur 8 malam. */
-
-  const hm2min = t => {
-    if (t == null || t === '') return null;
-    const m = String(t).trim().match(/^(\d{1,2})[:.](\d{1,2})$/);
-    if (m) return (+m[1])*60 + (+m[2]);
-    const n = parseFloat(t);
-    return isNaN(n) ? null : Math.round(n*60);
-  };
-  const min2hm = v => v == null ? '—' : Math.floor(v/60) + ':' + p2(Math.round(v%60));
-
-  /* Keteraturan tidur, hitungan kita sendiri. Zepp tidak membuka rumusnya.
-     Dasarnya sebaran jam mulai tidur dan jam bangun selama tujuh malam:
-     makin kecil sebarannya, makin teratur. */
-  function sleepRegularity(uptoKey) {
-    const rows = logs.filter(l => l.key <= uptoKey).slice(-7).map(l => l.value)
-                     .filter(v => v.bed != null && v.wake != null);
-    if (rows.length < 4) return null;
-    const sd = arr => {
-      const m = avg(arr);
-      return Math.sqrt(avg(arr.map(x => (x-m)*(x-m))));
-    };
-    /* jam tidur dinormalkan ke sumbu yang berpusat di tengah malam supaya
-       23:13 dan 01:03 tidak dianggap berjarak 22 jam */
-    const bed = rows.map(v => { const t = hm2min(v.bed); return t > 720 ? t - 1440 : t; });
-    const wake = rows.map(v => hm2min(v.wake));
-    const spread = (sd(bed) + sd(wake)) / 2;
-    return Math.round(clamp(100 - spread * 0.75, 0, 100));
-  }
-
-  /* Grafik tidur. Kalau ada segmen tahapan per menit (nanti dari Health Auto
-     Export) digambar seperti hipnogram Zepp. Kalau yang ada cuma totalnya,
-     digambar sebagai batang komposisi — jujur, bukan zigzag karangan. */
-  function drawSleep() {
-    const el = $('#sleep-hypno'); if (!el) return;
-    const v = logOf(sel);
-    const rec = mergedRecovery().find(r => r.key === sel) || {};
-    const total = v.sleep != null ? v.sleep : rec.sleep;
-    const bed = hm2min(v.bed), wake = hm2min(v.wake);
-    const deep = hm2min(v.deep), rem = hm2min(v.rem), awake = hm2min(v.awake);
-    const nap = hm2min(v.nap);
-
-    if (total == null && bed == null) {
-      el.innerHTML = `<p class="empty-note">Belum ada data tidur untuk malam ini. Isi manual dari Zepp, atau tunggu sinkron dari intervals.icu.</p>`;
-      return;
-    }
-
-    const tot = total != null ? Math.round(total*60) : (bed!=null&&wake!=null ? ((wake - bed + 1440) % 1440) : null);
-    const light = (tot != null && deep != null && rem != null)
-      ? Math.max(0, tot - deep - rem - (awake||0)) : null;
-
-    const hyp = !!(v.stages && v.stages.length);
-    const W = 320, H = hyp ? 54 : 30;
-    let bar = '';
-    if (v.stages && v.stages.length) {
-      /* hipnogram sungguhan: [{s:menitDariMulai, e:menit, k:'deep|light|rem|awake'}] */
-      const span = v.stages[v.stages.length-1].e || 1;
-      const lane = { awake:0, rem:1, light:2, deep:3 };
-      v.stages.forEach(g => {
-        const x1 = (g.s/span)*W, x2 = (g.e/span)*W;
-        const y = 3 + lane[g.k]*12;
-        bar += `<rect class="sg sg-${g.k}" x="${x1.toFixed(1)}" y="${y}" width="${Math.max(1.5,x2-x1).toFixed(1)}" height="10" rx="2.5"/>`;
-      });
-    } else if (light != null) {
-      const seg = [['deep',deep],['rem',rem],['light',light],['awake',awake||0]].filter(s=>s[1]>0);
-      const sum = seg.reduce((a,b)=>a+b[1],0) || 1;
-      let x = 0;
-      seg.forEach(([k,m]) => {
-        const w = (m/sum)*W;
-        bar += `<rect class="sg sg-${k}" x="${x.toFixed(1)}" y="0" width="${w.toFixed(1)}" height="30" rx="4"/>`;
-        x += w;
-      });
-    } else {
-      bar = `<rect class="sg sg-light" x="0" y="0" width="${W}" height="30" rx="4"/>`;
-    }
-
-    const dPrev = new Date(UI.parse(sel).getTime() - 86400000);
-    const kiri = bed != null ? `<span>[${UI.shortDate(keyOf(dPrev)).dow}] ${min2hm(bed)}</span>` : '<span>&nbsp;</span>';
-    const kanan = wake != null ? `<span>${min2hm(wake)}</span>` : '<span>&nbsp;</span>';
-
-    el.innerHTML = `
-      <div class="sleep-top"><b>${tot!=null?min2hm(tot):'—'}</b><span>${v.stages&&v.stages.length?'hipnogram':'komposisi tahapan'}</span></div>
-      <svg class="hyp${hyp?'':' comp'}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bar}</svg>
-      <div class="sleep-ends">${kiri}${kanan}</div>
-      <div class="slegend">
-        <span class="lg lg-deep">Deep</span><span class="lg lg-rem">REM</span>
-        <span class="lg lg-light">Light</span><span class="lg lg-awake">Terjaga</span>
-      </div>
-      ${nap ? `<div class="napline"><b>Tidur siang</b><span>${min2hm(nap)}</span></div>` : ''}`;
-  }
-
-  /* Enam angka yang dipakai membaca pemulihan. HRV dan resting HR ikut di sini
-     karena keduanya baru berarti kalau dibaca bersama tahapan tidur. */
-  function renderSleepMetrics() {
-    const el = $('#sleep-metrics'); if (!el) return;
-    const v = logOf(sel);
-    const rec = mergedRecovery().find(r => r.key === sel) || {};
-    const tot = v.sleep != null ? v.sleep : rec.sleep;
-    const totM = tot != null ? Math.round(tot*60) : null;
-    const deep = hm2min(v.deep), rem = hm2min(v.rem), awake = hm2min(v.awake);
-    const reg = sleepRegularity(sel);
-    const hrv = rec.hrv, rhr = rec.rhr;
-    const kind = wellnessMap()[sel] && wellnessMap()[sel].hrv_kind;
-
-    const pct = m => (m != null && totM) ? ` <i>${Math.round(m/totM*100)}%</i>` : '';
-    const grade = (val, good, fair) => val == null ? '' :
-      val >= good ? '<span class="gd ok">baik</span>' :
-      val >= fair ? '<span class="gd mid">cukup</span>' : '<span class="gd low">kurang</span>';
-
-    const tgt = goals.sleep_target_h || 7;
-    const row = (k, val, sub, gr) => `<div class="sm">
-        <div class="k">${k}</div><div class="v">${val}${sub||''}</div>${gr||''}</div>`;
-
-    el.innerHTML =
-      row('Durasi', totM!=null?min2hm(totM):'—', totM!=null?` <i>target ${tgt}:00</i>`:'',
-          totM!=null?grade(totM/60, tgt-0.5, tgt-1.5):'') +
-      row('Keteraturan', reg!=null?reg+'%':'—', reg==null?' <i>butuh 4 malam</i>':'',
-          reg!=null?grade(reg, 75, 55):'') +
-      row('Deep', deep!=null?min2hm(deep):'—', pct(deep),
-          deep!=null&&totM?grade(deep/totM*100, 15, 12):'') +
-      row('REM', rem!=null?min2hm(rem):'—', pct(rem),
-          rem!=null&&totM?grade(rem/totM*100, 20, 15):'') +
-      row('Terjaga', awake!=null?min2hm(awake):'—', pct(awake),
-          awake!=null&&totM?grade(100-awake/totM*100, 95, 90):'') +
-      row('HRV', hrv!=null?hrv:'—', hrv!=null?` <i>ms${kind?' · '+kind:''}</i>`:'') +
-      row('Resting HR', rhr!=null?rhr:'—', rhr!=null?' <i>bpm</i>':'');
-  }
-
-  /* Narasi pemulihan. Bukan mengulang angka di atasnya, tapi membacanya:
-     mana yang menahan, mana yang sudah beres, dan artinya untuk latihan. */
-  function recoveryNarrative() {
-    const box = $('#rec-coach'); if (!box) return;
-    const v = logOf(sel);
-    const rec = mergedRecovery().find(r => r.key === sel) || {};
-    const tot = v.sleep != null ? v.sleep : rec.sleep;
-    const totM = tot != null ? Math.round(tot*60) : null;
-    const deep = hm2min(v.deep), rem = hm2min(v.rem), awake = hm2min(v.awake);
-    const reg = sleepRegularity(sel);
-    const tgt = goals.sleep_target_h || 7;
-    const all = mergedRecovery().filter(r => r.key <= sel).slice(-14);
-    const sl14 = all.map(r=>r.sleep).filter(x=>x!=null);
-    const P = [];
-
-    if (totM == null) {
-      box.querySelector('.cb-txt').innerHTML = `<p>Belum ada data tidur untuk malam ini, jadi belum ada yang bisa dibaca. Isi durasi tidur saja dulu, itu satu angka yang paling menentukan.</p>`;
-      box.hidden = false; return;
-    }
-
-    /* 1. yang paling menentukan hari ini */
-    const kurang = tgt - totM/60;
-    if (kurang > 1) {
-      P.push(`Tidur <b>${min2hm(totM)}</b>, kurang ${kurang.toFixed(1)} jam dari target ${tgt}. Kekurangan sebesar ini menurunkan kualitas sesi keras, bukan sesi easy. Kalau hari ini ada interval, itu yang pertama dikorbankan.`);
-    } else if (kurang > 0.3) {
-      P.push(`Tidur <b>${min2hm(totM)}</b>, sedikit di bawah target ${tgt}. Belum cukup untuk mengubah rencana latihan, tapi jangan diulang tiga malam berturut turut.`);
-    } else {
-      P.push(`Tidur <b>${min2hm(totM)}</b>, sudah memenuhi target. Ini modal yang cukup untuk sesi keras.`);
-    }
-
-    /* 2. tahapan, hanya kalau ada datanya */
-    if (deep != null && rem != null && totM) {
-      const pd = deep/totM*100, pr = rem/totM*100;
-      const T = [];
-      if (pd < 12) T.push(`Deep cuma ${pd.toFixed(0)} persen. Deep adalah bagian yang memperbaiki otot dan jaringan, jadi ini yang paling terasa kalau kamu bangun dengan kaki masih berat.`);
-      else T.push(`Deep ${pd.toFixed(0)} persen, di rentang normal. Bagian pemulihan fisiknya sudah dapat.`);
-      if (pr > 25) T.push(`REM ${pr.toFixed(0)} persen, di atas kebiasaan. Sesekali wajar. Kalau berulang, biasanya tanda utang tidur dari malam malam sebelumnya atau stres harian yang naik.`);
-      else if (pr < 15) T.push(`REM ${pr.toFixed(0)} persen, tipis. REM yang kurang lebih terasa di fokus dan mood daripada di kaki.`);
-      P.push(T.join(' '));
-    }
-
-    /* 3. keteraturan, penyebab yang paling sering dilupakan */
-    if (reg != null) {
-      P.push(reg >= 75
-        ? `Keteraturan ${reg} persen. Jam tidurmu konsisten, dan itu yang membuat skor pemulihan bisa dipercaya.`
-        : `Keteraturan ${reg} persen. Jam mulai tidurmu berpindah pindah lebih dari satu jam antar malam. Untuk badan, jam tidur yang berubah ubah efeknya mirip jet lag ringan tiap hari, dan itu menahan deep sleep lebih dulu daripada durasinya. Kalau cuma satu hal yang mau kamu perbaiki minggu ini, pilih ini: kunci jam mulai tidur, bukan jam bangun.`);
-    }
-
-    /* 4. arah dua minggu */
-    if (sl14.length >= 5) {
-      const a = avg(sl14);
-      P.push(`Rata rata 14 malam terakhir ${a.toFixed(1)} jam. ${a < tgt - 0.5
-        ? `Ini defisit yang menumpuk, dan tidak bisa ditutup oleh satu malam panjang di akhir pekan.`
-        : `Sudah di sekitar target, jadi masalahnya bukan di jumlah.`}`);
-    }
-
-    if (awake != null && totM && awake/totM > 0.06) {
-      P.push(`Terjaga ${min2hm(awake)} sepanjang malam. Itu cukup banyak untuk memotong siklus deep. Biasanya penyebabnya suhu kamar, cahaya, atau makan terlalu dekat jam tidur.`);
-    }
-
-    box.querySelector('.cb-txt').innerHTML = P.map(x=>`<p>${x}</p>`).join('');
-    box.hidden = false;
-  }
-
   function renderBody() {
-    drawSleep(); renderSleepMetrics(); recoveryNarrative();
-    const wm = wellnessMap();
-    const autoCount = Object.values(wm).filter(d=>d.rhr!=null||d.sleep_h!=null||d.hrv!=null).length;
-    const rn = $('#rec-note');
-    if (rn) rn.textContent = autoCount
-      ? `${autoCount} hari data recovery masuk otomatis dari intervals.icu. Angka yang kamu ketik manual selalu menimpa yang otomatis.`
-      : 'Sambungkan jam ke intervals.icu, atau ketik tidur, HRV, dan resting HR manual tiap pagi.';
-
-    const rec = mergedRecovery();
-    const rser = f => rec.slice(-30).filter(r=>r[f]!=null).map(r=>({v:r[f], label:UI.shortDate(r.key).dm}));
-    const r7 = f => rec.slice(-7).map(r=>r[f]).filter(v=>v!=null);
-    const s7 = avg(r7('sleep'));
-    const d7 = avg(logs.slice(-7).map(l=>hm2min(l.value.deep)).filter(x=>x!=null));
-    const g7 = sleepRegularity(sel);
-    $('#rec-stats').innerHTML =
-      statTile('Tidur 7 malam', s7==null?'belum':s7.toFixed(1), s7==null?'':' j', s7==null) +
-      statTile('Deep 7 malam', d7==null?'belum':min2hm(Math.round(d7)), '', d7==null) +
-      statTile('Keteraturan', g7==null?'belum':g7, g7==null?'':' %', g7==null);
-    UI.lineChart($('#chart-sleep'), rser('sleep'), { dp:1, target:goals.sleep_target_h });
-    UI.lineChart($('#chart-hrv'), rser('hrv'), { dp:0, empty:'Belum ada HRV. Cek di intervals.icu apakah jam-mu benar-benar mengirim HRV.' });
-    UI.lineChart($('#chart-rhr'), rser('rhr'), { dp:0 });
-
-    const last7 = f => logs.slice(-7).map(l=>l.value[f]).filter(v=>v!=null);
+    /* Recovery dicabut. Tubuh sekarang cuma tiga hal: berat dan komposisi,
+       nutrisi, dan foto pembanding. */
+    const last7 = f => logs.slice(-7).map(l => l.value[f]).filter(v => v != null);
     const c7 = avg(last7('cal')), p7 = avg(last7('protein'));
     $('#nut-stats').innerHTML =
-      statTile('Kalori 7 hari', c7==null?'belum':Math.round(c7), c7==null?'':' kkal', c7==null) +
-      statTile('Protein 7 hari', p7==null?'belum':Math.round(p7), p7==null?'':' g', p7==null) +
+      statTile('Kalori 7 hari', c7 == null ? 'belum' : Math.round(c7), c7 == null ? '' : ' kkal', c7 == null) +
+      statTile('Protein 7 hari', p7 == null ? 'belum' : Math.round(p7), p7 == null ? '' : ' g', p7 == null) +
       statTile('Target protein', goals.protein_target_g, ' g');
     UI.lineChart($('#chart-cal'), series('cal'), { dp:0, target:goals.cal_target });
     UI.lineChart($('#chart-prot'), series('protein'), { dp:0, target:goals.protein_target_g });
     const nl = logs.slice(-7).reverse();
-    $('#nut-list').innerHTML = nl.length ? nl.map(r=>{
-      const v=r.value, dt=UI.shortDate(r.key), bits=[];
-      if(v.cal!=null) bits.push(`<b>${v.cal}</b> kkal`);
-      if(v.protein!=null) bits.push(`<b>${v.protein}</b> g P`);
-      return `<div class="rowitem"><div class="d">${dt.dow}<br>${dt.dm}</div><div class="m">${bits.join(' · ')||'—'}</div>
-        <div class="tags"><span class="tag${v.vit_am?' on':''}">AM</span><span class="tag${v.vit_pm?' on':''}">PM</span></div></div>`;
+    $('#nut-list').innerHTML = nl.length ? nl.map(r => {
+      const v = r.value, dt = UI.shortDate(r.key), bits = [];
+      if (v.cal != null) bits.push(`<b>${v.cal}</b> kkal`);
+      if (v.protein != null) bits.push(`<b>${v.protein}</b> g P`);
+      return `<div class="rowitem"><div class="d">${dt.dow}<br>${dt.dm}</div><div class="m">${bits.join(' &middot; ') || '—'}</div>
+        <div class="tags"><span class="tag${v.vit_am ? ' on' : ''}">AM</span><span class="tag${v.vit_pm ? ' on' : ''}">PM</span></div></div>`;
     }).join('') : `<p class="empty-note">Belum ada catatan makan.</p>`;
 
-    const w = logs.filter(l=>l.value.weight!=null);
-    const first = w.length?w[0].value.weight:null, lastW = w.length?w[w.length-1].value.weight:null;
-    const dW = (first!=null&&lastW!=null) ? lastW-first : null;
+    /* Berat harian bergoyang karena hidrasi dan isi perut, jadi yang dibaca
+       rata-rata tujuh hari, bukan angka hari ini. */
+    const wl = logs.filter(l => l.value.weight != null);
+    const lastW = wl.length ? wl[wl.length - 1].value.weight : null;
+    const avg7 = avg(logs.slice(-7).map(l => l.value.weight).filter(v => v != null));
+    const avgPrev = avg(logs.slice(-14, -7).map(l => l.value.weight).filter(v => v != null));
+    const dW = (avg7 != null && avgPrev != null) ? +(avg7 - avgPrev).toFixed(2) : null;
     $('#prog-stats').innerHTML =
-      statTile('Berat', lastW==null?'belum':lastW.toFixed(1), lastW==null?'':' kg', lastW==null) +
-      statTile('Perubahan', dW==null?'—':(dW>0?'+':'')+dW.toFixed(1), dW==null?'':' kg', dW==null) +
-      statTile('Target BF', goals.bf_target_pct, ' %');
-    UI.lineChart($('#chart-weight'), series('weight',60), { dp:1 });
-    UI.lineChart($('#chart-bf'), series('bf',60), { dp:1, target:goals.bf_target_pct });
+      statTile('Hari ini', lastW == null ? 'belum' : lastW.toFixed(1), lastW == null ? '' : ' kg', lastW == null) +
+      statTile('Rata-rata 7 hari', avg7 == null ? 'belum' : avg7.toFixed(1), avg7 == null ? '' : ' kg', avg7 == null) +
+      statTile('vs 7 hari sebelumnya', dW == null ? '—' : (dW > 0 ? '+' : '') + dW.toFixed(2), dW == null ? '' : ' kg', dW == null);
+    const bn = $('#berat-note');
+    if (bn) bn.textContent = avg7 == null
+      ? 'Isi berat tiap pagi setelah bangun dan sebelum makan. Satu angka saja cukup.'
+      : `Sasaran 67 kg di Desember butuh sekitar 0,25 kg per minggu. Di laju itu timbangan akan datar 10 sampai 14 hari berturut-turut, dan itu normal. Yang dibaca rata-rata tujuh hari, bukan angka hari ini.`;
+    const tl = $('#tape-list');
+    if (tl) {
+      const rows = logs.filter(l => TAPE.some(([k]) => l.value[k] != null)).slice(-4).reverse();
+      tl.innerHTML = rows.length ? rows.map(r => {
+        const dt = UI.shortDate(r.key);
+        const bits = TAPE.filter(([k]) => r.value[k] != null).map(([k, lab]) => `${lab} <b>${r.value[k]}</b>`);
+        return `<div class="rowitem"><div class="d">${dt.dow}<br>${dt.dm}</div><div class="m">${bits.join(' &middot; ')}</div><div></div></div>`;
+      }).join('') : `<p class="empty-note">Belum ada lingkar badan. Ukur sekali sebulan, lima titik.</p>`;
+    }
+    UI.lineChart($('#chart-weight'), series('weight', 60), { dp:1, target:goals.weight_target || null });
+    UI.lineChart($('#chart-bf'), series('bf', 60), { dp:1, target:goals.bf_target_pct });
     renderPhotoGrid();
   }
   function renderPhotoGrid() {
@@ -1457,60 +903,15 @@
   }
 
   /* ================= PERFORMA ================= */
-  function renderPerf() {
-    const rs=$('#run-stats'), rl=$('#run-list');
-    if (!activities || !activities.ok) { rs.innerHTML=''; rl.innerHTML=connectBlock(activities&&activities.reason); }
-    else {
-      const runs = activities.data.filter(a=>RUNTYPE(a.type)).sort((a,b)=>a.start<b.start?1:-1);
-      const km28 = runs.filter(a=>UI.parse(a.date)>=new Date(Date.now()-28*86400000)).reduce((s,a)=>s+(a.km||0),0);
-      const paces = runs.slice(0,10).map(a=>a.pace_s_per_km).filter(Boolean);
-      rs.innerHTML = statTile('Jarak 28 hari', km28.toFixed(1), ' km') + statTile('Sesi', String(runs.length),'') +
-        statTile('Pace rata2', paces.length?UI.pace(avg(paces)):'—','');
-      rl.innerHTML = runs.length ? runs.slice(0,15).map(actCard).join('') : `<p class="empty-note">Belum ada aktivitas lari.</p>`;
-    }
-
-    const st14 = logs.slice(-14).filter(l=>l.value.st).length, st7 = logs.slice(-7).filter(l=>l.value.st).length;
-    const dts = logs.slice(-7).filter(l=>{const d=l.value.daily||{};return d.abs&&d.calf&&d.hip;}).length;
-    $('#st-stats').innerHTML = statTile('ST 7 hari',String(st7),' sesi')+statTile('ST 14 hari',String(st14),' sesi')+statTile('Daily lengkap',String(dts),'/7');
-
-    const start = new Date(); start.setDate(start.getDate()-start.getDay());
-    $('#st-week').innerHTML = `<div class="loglist">` + [1,2,3,4,5,6,0].map(dw=>{
-      const d=new Date(start); d.setDate(start.getDate()+(dw===0?7:dw));
-      const key=keyOf(d), w=PLAN.week[dw], v=logOf(key), dd=v.daily||{};
-      const done=['abs','calf','hip'].filter(k=>dd[k]).length;
-      return `<div class="rowitem"${key===today?' style="background:var(--accent-soft);border-radius:9px;padding-left:8px;padding-right:8px"':''}>
-        <div class="d">${UI.DAYS[dw].slice(0,3)}<br>${d.getDate()}</div>
-        <div class="m"><b>${w.title}</b></div>
-        <div class="tags">${w.st?`<span class="tag${v.st?' on':''}">ST</span>`:`<span class="tag${v.run?' on':''}">LARI</span>`}<span class="tag${done===3?' on':''}">${done}/3</span></div></div>`;
-    }).join('') + `</div>`;
-
-    const gymEl = $('#st-gym');
-    if (gymEl) {
-      if (!activities || !activities.ok) gymEl.innerHTML = connectBlock(activities&&activities.reason, true);
-      else {
-        const gyms = activities.data.filter(x=>GYMTYPE(x.type)).sort((x,y)=>x.start<y.start?1:-1);
-        gymEl.innerHTML = gyms.length ? `<div class="loglist">`+gyms.slice(0,10).map(x=>{
-          const dt=UI.shortDate(x.date), bits=[];
-          if(x.moving_s) bits.push(`<b>${UI.dur(x.moving_s)}</b>`);
-          if(x.load!=null) bits.push(`load <b>${x.load}</b>`);
-          if(x.avg_hr) bits.push(`${Math.round(x.avg_hr)} bpm`);
-          return `<div class="rowitem"><div class="d">${dt.dow}<br>${dt.dm}</div><div class="m">${bits.join(' · ')||x.name||'—'}</div><div></div></div>`;
-        }).join('')+`</div>` : `<p class="empty-note">Belum ada sesi WeightTraining di intervals.icu.</p>`;
-      }
-    }
-    const p = PLAN.today(UI.dow(today), today, 'gym');
-    $('#st-program').innerHTML = p.session
-      ? `<p class="note-sm" style="margin:0 0 10px">${p.day.title} — ${p.session.length} latihan.</p>`
-      : `<p class="note-sm" style="margin:0">Hari ini tidak ada sesi gym terjadwal.</p>`;
-    const ob = $('#open-program'); if (ob) ob.onclick = () => UI.nav('home');
-  }
 
   /* ================= PROFIL ================= */
   function renderProfile() {
     $('#p-name').value = profile.name || '';
     $('#g-race').value = goals.race_date; $('#g-prot').value = goals.protein_target_g;
-    $('#g-cal').value = goals.cal_target; $('#g-sleep').value = goals.sleep_target_h;
+    $('#g-cal').value = goals.cal_target;
     $('#g-bf').value = goals.bf_target_pct; $('#g-tdee').value = goals.tdee_low;
+    if ($('#g-weight')) $('#g-weight').value = goals.weight_target != null ? goals.weight_target : 67;
+    if (window.TRAIN) { TRAIN.renderGear($('#gear-body')); TRAIN.renderLib($('#lib-body')); }
     const st=(r,o)=>`<div class="rowitem"><div class="d">${r}</div><div class="m">${o}</div><div></div></div>`;
     const w = wellness&&wellness.ok, a = activities&&activities.ok;
     $('#conn-body').innerHTML = `<div class="loglist">
@@ -1522,10 +923,11 @@
 
   function renderAll() {
     renderDayNav();
+    renderMuscle();                     /* peta dulu: vonis membacanya */
     const vd = verdict();
     $('#verdict').textContent = vd.t; $('#verdict-sub').textContent = vd.s;
-    renderTargets(); renderMuscle(); renderHero(); renderFit(); renderPlan();
-    renderLastRun(); renderInsight(); renderBody(); renderPerf(); renderProfile();
+    renderTargets(); renderFit(); renderTrain();
+    renderLastRun(); renderRunList(); renderInsight(); renderBody(); renderProfile();
     if (profile.photo) { $('#avatar-img').src=profile.photo; $('#avatar-img').hidden=false; $('#avatar-fallback').hidden=true; }
     else { $('#avatar-img').hidden=true; $('#avatar-fallback').hidden=false; $('#avatar-fallback').textContent=(profile.name||'R')[0].toUpperCase(); }
   }
@@ -1643,27 +1045,26 @@
   }
 
   /* ================= SHEET CATAT ================= */
-  const F = { weight:'f-weight', bf:'f-bf', sleep:'f-sleep', hrv:'f-hrv', rhr:'f-rhr',
-              bed:'f-bed', wake:'f-wake', deep:'f-deep', rem:'f-rem', awake:'f-awake', nap:'f-nap',
-              cal:'f-cal', protein:'f-protein', dist:'f-dist', notes:'f-notes' };
+  const F = { weight:'f-weight', bf:'f-bf', cal:'f-cal', protein:'f-protein', notes:'f-notes',
+              t_lengan:'f-t-lengan', t_dada:'f-t-dada', t_pinggang:'f-t-pinggang',
+              t_pinggul:'f-t-pinggul', t_paha:'f-t-paha' };
+  const TAPE = [['t_lengan','Lengan'],['t_dada','Dada'],['t_pinggang','Pinggang'],
+                ['t_pinggul','Pinggul'],['t_paha','Paha']];
   function fillSheet() {
     const v = logOf(sel);
-    for (const k in F) { const el=document.getElementById(F[k]); el.value = (v[k]==null)?'':v[k]; }
-    const set=(id,on)=>$(id).setAttribute('aria-pressed',String(!!on));
-    set('#t-st',v.st); set('#t-run',v.run); set('#t-vam',v.vit_am); set('#t-vpm',v.vit_pm);
-    const d=v.daily||{}; set('#t-abs',d.abs); set('#t-calf',d.calf); set('#t-hip',d.hip);
-    $('#f-dist-wrap').hidden = !v.run;
+    for (const k in F) { const el=document.getElementById(F[k]); if(el) el.value = (v[k]==null)?'':v[k]; }
+    const set=(id,on)=>{ const el=$(id); if(el) el.setAttribute('aria-pressed',String(!!on)); };
+    set('#t-vam',v.vit_am); set('#t-vpm',v.vit_pm); set('#t-fed',v.fed); set('#t-bab',v.bab);
     $('#sheet-date').textContent = 'Catat — ' + UI.fmt(sel);
     renderSlots();
   }
   function readSheet() {
     const v = Object.assign({}, logOf(sel));
-    const TXT = { notes:1, bed:1, wake:1, deep:1, rem:1, awake:1, nap:1 };
+    const TXT = { notes:1 };
     for (const k in F) { const el=document.getElementById(F[k]); if(!el) continue;
       v[k] = TXT[k] ? (el.value.trim()||null) : num(el.value); }
-    const on=id=>$(id).getAttribute('aria-pressed')==='true';
-    v.st=on('#t-st'); v.run=on('#t-run'); v.vit_am=on('#t-vam'); v.vit_pm=on('#t-vpm');
-    v.daily={abs:on('#t-abs'),calf:on('#t-calf'),hip:on('#t-hip')};
+    const on=id=>{ const el=$(id); return el ? el.getAttribute('aria-pressed')==='true' : false; };
+    v.vit_am=on('#t-vam'); v.vit_pm=on('#t-vpm'); v.fed=on('#t-fed'); v.bab=on('#t-bab');
     v.updated_at=new Date().toISOString();
     return v;
   }
@@ -1693,11 +1094,23 @@
     });
   }
 
-  /* ================= NAV YANG MENGECIL ================= */
+  /* ================= NAV YANG MENGECIL =================
+     Lebar pil dan geseran item aktif dihitung dari ukuran aslinya, bukan
+     dari angka tetap, supaya label sepanjang "Beranda" dan sependek
+     "Profil" dua-duanya pas. */
   let navT = null;
+  function measureNav() {
+    const nav = $('.nav'), cur = $('.nav li.cur button');
+    if (!nav || !cur) return;
+    const nb = nav.getBoundingClientRect(), cb = cur.getBoundingClientRect();
+    const label = cur.querySelector('span');
+    const w = (label ? label.getBoundingClientRect().width : 44) + 19 + 9 + 44;
+    nav.style.setProperty('--nb-w', Math.round(w) + 'px');
+    nav.style.setProperty('--nb-dx', Math.round((nb.left + nb.width / 2) - (cb.left + cb.width / 2)) + 'px');
+  }
   function armNavIdle() {
     clearTimeout(navT);
-    navT = setTimeout(() => document.body.classList.add('nav-mini'), 4000);
+    navT = setTimeout(() => { measureNav(); document.body.classList.add('nav-mini'); }, 4000);
   }
   function expandNav() { document.body.classList.remove('nav-mini'); armNavIdle(); }
 
@@ -1705,12 +1118,10 @@
   function wire() {
     $$('.nav button[data-go]').forEach(b => b.onclick = e => {
       if (document.body.classList.contains('nav-mini')) { e.preventDefault(); expandNav(); return; }
-      UI.nav(b.dataset.go); armNavIdle();
+      UI.nav(b.dataset.go); measureNav(); armNavIdle();
     });
-    $('#log-btn').onclick = e => {
-      if (document.body.classList.contains('nav-mini')) { e.preventDefault(); expandNav(); return; }
-      fillSheet(); UI.openSheet('log-sheet'); armNavIdle();
-    };
+    window.addEventListener('resize', measureNav);
+    document.addEventListener('viewchange', measureNav);
     ['scroll','touchstart','pointerdown'].forEach(ev =>
       window.addEventListener(ev, () => { if(!document.body.classList.contains('nav-mini')) armNavIdle(); }, {passive:true}));
 
@@ -1736,10 +1147,6 @@
     });
     $('#full-close').onclick = closeFull;
     window.addEventListener('resize', () => { if(!$('#full-chart').hidden) drawFull(); });
-    $('#plan-reset').onclick = async () => {
-      const v = Object.assign({}, logOf(sel)); delete v.st_mode; delete v.loads;
-      await saveLog(v);
-    };
 
     /* geser kiri = mundur satu hari, geser kanan = maju satu hari */
     let sx=0, sy=0, tracking=false;
@@ -1759,17 +1166,22 @@
     $$('.tg').forEach(b => b.onclick = () => {
       const on = b.getAttribute('aria-pressed') !== 'true';
       b.setAttribute('aria-pressed', String(on));
-      if (b.id === 't-run') $('#f-dist-wrap').hidden = !on;
+
     });
 
-    document.addEventListener('click', async e => {
-      const t = e.target.closest('.trk'); if(!t) return;
+    /* berat cepat di Beranda. Satu angka, tanpa membuka sheet, karena ini
+       satu-satunya hal yang dikerjakan tiap pagi. */
+    $('#w-save').onclick = async () => {
+      const el = $('#w-quick'), val = num(el.value);
+      if (val == null) { flash('#w-msg', 'Isi angkanya dulu.'); return; }
       const v = Object.assign({}, logOf(sel));
-      v.daily = Object.assign({abs:false,calf:false,hip:false}, v.daily);
-      v.daily[t.dataset.track] = !v.daily[t.dataset.track];
+      v.weight = val;
+      v.fed = $('#w-fed').getAttribute('aria-pressed') === 'true';
+      v.bab = $('#w-bab').getAttribute('aria-pressed') === 'true';
       v.updated_at = new Date().toISOString();
       await saveLog(v);
-    });
+      flash('#w-msg', 'Tersimpan.');
+    };
 
     $('#save').onclick = async () => { await saveLog(readSheet(), $('#saved')); };
     $('#p-save').onclick = async () => {
@@ -1786,7 +1198,7 @@
       goals.race_date = $('#g-race').value || goals.race_date;
       goals.protein_target_g = num($('#g-prot').value) ?? goals.protein_target_g;
       goals.cal_target = num($('#g-cal').value) ?? goals.cal_target;
-      goals.sleep_target_h = num($('#g-sleep').value) ?? goals.sleep_target_h;
+      if ($('#g-weight')) goals.weight_target = num($('#g-weight').value) ?? goals.weight_target;
       goals.bf_target_pct = num($('#g-bf').value) ?? goals.bf_target_pct;
       goals.tdee_low = num($('#g-tdee').value) ?? goals.tdee_low;
       await Store.put('meta','goals',goals); renderAll(); flash('#g-msg','Target disimpan.');
@@ -1844,6 +1256,7 @@
     if (!targets) { targets = TARGETS.DEFAULTS.slice(); await Store.put('meta','targets',targets); }
     logs = (await Store.all('logs')).sort((a,b)=>a.key<b.key?-1:1);
     photos = await Store.all('photos');
+    if (window.TRAIN) await TRAIN.init({ Store, UI, $, $$, onChange: renderAll });
     if (sel > today) sel = today;
     renderAll();
   }
@@ -1852,12 +1265,13 @@
   (async function boot() {
     wire();
     let view='home'; try{ view=localStorage.getItem('arete_view')||'home'; }catch(e){}
+    if (['home','train','body','profile'].indexOf(view) < 0) view = 'home';
     UI.nav(view);
-    ['body','perf'].forEach(v=>{ let s=null; try{s=localStorage.getItem('arete_sub_'+v);}catch(e){} if(s) UI.subnav(v,s); });
-    showLogPanel('makan');
+    ['body','train'].forEach(v=>{ let s=null; try{s=localStorage.getItem('arete_sub_'+v);}catch(e){} if(s) UI.subnav(v,s); });
+    showLogPanel('badan');
     await load();
     Splash.start();
-    armNavIdle();
+    measureNav(); armNavIdle();
     pull().then(renderAll);
     setInterval(()=>{ const k=UI.todayKey(); if(k!==today){ if(sel===today) sel=k; today=k; renderAll(); } }, 60000);
   })();

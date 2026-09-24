@@ -283,12 +283,7 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;
                 stroke-linecap:round;stroke-linejoin:round}
 .nav button[aria-current="page"]{color:var(--accent)}
-.nav .mid button{color:var(--fg-3)}
-.nav .fab{width:40px;height:40px;border-radius:50%;background:var(--accent);display:grid;place-items:center;
-          margin-top:-13px;box-shadow:0 3px 10px rgba(161,56,56,.3)}
-.nav .fab svg{width:20px;height:20px;stroke:#fff;stroke-width:2.3}
-[data-mode="night"] .nav .fab svg{stroke:#000}
-[data-mode="night"] .nav .fab{box-shadow:none}
+.nav button span{display:block}
 
 /* ============ SHEET ============ */
 .sheet{position:fixed;inset:0;z-index:60}
@@ -324,12 +319,6 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 
 /* ============ PROGRAM SHEET ============ */
 .exlist{display:flex;flex-direction:column}
-.ex{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--rule)}
-.ex:last-child{border-bottom:0}
-.ex .n{font-size:11px;color:var(--fg-3);font-weight:600;font-variant-numeric:tabular-nums;padding-top:2px}
-.ex .nm{font-size:14px;font-weight:600;letter-spacing:-.01em;line-height:1.4}
-.ex .ds{font-size:12px;color:var(--accent);font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
-.ex .nt{font-size:11.5px;color:var(--fg-3);margin-top:2px;line-height:1.5}
 .prog-sec{font-size:11px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
           color:var(--accent);margin:18px 0 6px}
 .prog-sec:first-child{margin-top:0}
@@ -514,18 +503,46 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .fchart .knob{fill:var(--accent)}
 .fchart text{fill:var(--fg-3);font-size:11px;font-weight:500}
 
-/* ---- nav yang mengecil saat didiamkan ---- */
-.nav{transition:background .4s ease,transform .3s cubic-bezier(.2,.8,.3,1),
-     width .3s cubic-bezier(.2,.8,.3,1),border-radius .3s ease,left .3s ease,right .3s ease,bottom .3s ease}
-.nav-mini .nav{left:50%;right:auto;transform:translateX(-50%);
-               bottom:calc(12px + env(safe-area-inset-bottom,0px));
-               border-radius:var(--r-pill);border:1px solid var(--rule);box-shadow:var(--lift-lg);
-               padding-bottom:0;width:auto}
-.nav-mini .nav ul{width:auto}
-.nav-mini .nav li{display:none}
-.nav-mini .nav li.cur{display:block}
-.nav-mini .nav li.cur button{height:50px;padding:0 22px;flex-direction:row;gap:9px;font-size:12.5px}
-.nav-mini .nav .fab{margin-top:0}
+/* ============================================================
+   NAV YANG MENGECIL
+   Versi lama memakai display:none untuk item yang bukan aktif. Properti itu
+   tidak bisa dianimasikan sama sekali, jadi saat nav dibuka itemnya muncul
+   mendadak sementara lebar kontainernya melompat. Tidak ada tweaking yang
+   bisa memperbaiki itu.
+
+   Yang dipakai sekarang: item tidak pernah dikeluarkan dari alur, hanya
+   diberi opacity nol. Yang melebar cuma satu lapisan latar tanpa anak, jadi
+   lebarnya boleh dianimasikan tanpa memaksa teks dihitung ulang tiap frame.
+   Urutannya sengaja: latar melebar dari tengah ke kiri dan kanan bersamaan,
+   baru itemnya masuk dengan tundaan bertingkat.
+   ============================================================ */
+.nav{background:none;border-top:0;transition:transform .3s cubic-bezier(.2,.8,.3,1)}
+.navbg{position:absolute;left:50%;bottom:0;height:100%;width:100%;
+  transform:translateX(-50%);background:var(--bg);border-top:1px solid var(--rule);
+  border-radius:0;box-shadow:none;pointer-events:none;
+  transition:width .38s cubic-bezier(.22,.9,.24,1),
+             height .38s cubic-bezier(.22,.9,.24,1),
+             bottom .38s cubic-bezier(.22,.9,.24,1),
+             border-radius .3s ease .06s,box-shadow .3s ease .06s,background .4s ease}
+.nav ul{position:relative;z-index:1}
+.nav li button{transition:opacity .22s ease,transform .32s cubic-bezier(.22,.9,.24,1),color .15s ease}
+
+.nav-mini .navbg{width:var(--nb-w,168px);height:52px;
+  bottom:calc(12px + env(safe-area-inset-bottom,0px));
+  border-radius:var(--r-pill);border-top:1px solid var(--rule);
+  border:1px solid var(--rule);box-shadow:var(--lift-lg)}
+.nav-mini .nav li:not(.cur) button{opacity:0;pointer-events:none;transform:scale(.88)}
+.nav-mini .nav li.cur button{transform:translateX(var(--nb-dx,0px)) translateY(-6px);
+  flex-direction:row;gap:9px;font-size:12.5px}
+.nav-mini .nav li.cur button svg{width:19px;height:19px}
+
+/* Saat membuka: latar selesai melebar dulu, baru item lain masuk. */
+.nav li:nth-child(1) button{transition-delay:.15s,0s,0s}
+.nav li:nth-child(2) button{transition-delay:.19s,0s,0s}
+.nav li:nth-child(3) button{transition-delay:.23s,0s,0s}
+.nav li:nth-child(4) button{transition-delay:.27s,0s,0s}
+/* Saat menutup: item menghilang lebih dulu, tanpa tundaan. */
+.nav-mini .nav li button{transition-delay:0s}
 
 
 /* ============================================================
@@ -794,3 +811,267 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .mshnote{margin:9px 0 0;font-size:11.5px;line-height:1.6;color:var(--fg-3)}
 .madvice{background:var(--sunk);border-radius:12px;padding:13px 14px;margin:6px 0 0;
   font-size:13.5px;line-height:1.65;color:var(--fg-2)}
+
+/* ============================================================
+   BARIS BERAT CEPAT DI BERANDA
+   Satu angka, tanpa membuka sheet, karena ini satu-satunya hal
+   yang dikerjakan tiap pagi dalam lima belas detik.
+   ============================================================ */
+.wrow{display:flex;align-items:center;gap:10px}
+.wrow input{flex:1;min-width:0;background:var(--sunk);border:1px solid transparent;border-radius:12px;
+  padding:13px 14px;font:600 22px 'Poppins',sans-serif;color:var(--fg);
+  font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.wrow input::-webkit-outer-spin-button,.wrow input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.wrow input:focus{outline:none;border-color:var(--accent);background:var(--bg)}
+.wrow .wu{font-size:13px;color:var(--fg-3);font-weight:600}
+.wchk{display:flex;gap:8px;margin-top:10px}
+.wchk .tg{flex:1}
+.sechead{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--fg-3);margin:26px 0 -2px;padding:0 2px}
+.view[data-view="profile"] .card{margin-top:12px}
+.view[data-view="profile"] .card .field{margin-bottom:12px}
+.view[data-view="profile"] .row{gap:10px}
+
+/* ============================================================
+   TAB LATIHAN
+   Kelas diberi lingkup .trainv supaya tidak bertabrakan dengan
+   .row, .track, .fill, dan .tag yang sudah dipakai di tempat lain.
+   ============================================================ */
+.trainv .dayhead{padding:0 0 4px}
+.trainv h1.verdict{font-size:24px;margin:0 0 4px}
+.trainv .sub{font-size:13px;color:var(--fg-3);margin:0 0 14px}
+.trainv .adj{display:flex;gap:10px;background:var(--accent-soft);border-radius:14px;
+  padding:13px 15px;margin:0 0 10px}
+.trainv .adj i{width:7px;height:7px;border-radius:50%;background:var(--accent);margin-top:6px;flex:none}
+.trainv .adj p{margin:0;font-size:13.5px;line-height:1.6;color:var(--fg-2)}
+.trainv .adj b{color:var(--fg);font-weight:600}
+.trainv .tm{margin:0;font-size:12.5px;line-height:1.6;color:var(--fg-3)}
+.trainv .tm2{margin:0;font-size:13px;line-height:1.6;color:var(--fg-2)}
+.trainv .tm2 b,.trainv .tm b{color:var(--fg);font-weight:600}
+.trainv .tskip{background:var(--sunk);border-radius:12px;padding:12px 14px;font-size:13px;
+  line-height:1.6;color:var(--fg-2);margin:0 0 8px}
+.trainv .tskip b{color:var(--fg);font-weight:600}
+.trainv .tclash{background:var(--warn-soft);border-radius:12px;padding:12px 14px;margin:11px 0 0;
+  font-size:13px;line-height:1.6;color:var(--fg-2)}
+.trainv .tclash b{color:var(--fg);font-weight:600}
+
+/* slot */
+.trainv .slot{margin:18px 0 0}
+.trainv .slot-h{display:flex;align-items:center;gap:9px;margin:0 0 9px;padding:0 2px}
+.trainv .slot-h .n{width:20px;height:20px;border-radius:6px;background:var(--accent-soft);
+  color:var(--accent);font:600 11px/20px 'Poppins',sans-serif;text-align:center;flex:none}
+.trainv .slot-h h2{font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--fg-2);margin:0;flex:1}
+.trainv .slot-h em{font-style:normal;font-size:10.5px;color:var(--fg-3);
+  font-family:'IBM Plex Mono',ui-monospace,monospace}
+
+/* kartu gerakan */
+.trainv .ex{display:block;background:var(--surface);border:1px solid var(--rule);border-radius:16px;
+  padding:14px 15px;margin:0 0 9px}
+.trainv .ex.off{opacity:.62}
+.trainv .ex-h{display:block;margin:0 0 11px}
+.trainv .ex-h h3{font-size:16px;font-weight:600;letter-spacing:-.01em;margin:0 0 3px;line-height:1.3}
+.trainv .swapped{display:inline-block;margin-left:7px;font:600 8.5px/1 'Poppins',sans-serif;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);
+  border-radius:5px;padding:3px 5px;vertical-align:2px}
+.trainv .ex-acts{display:flex;gap:6px;margin-top:9px}
+.trainv .ex-acts .mini{flex:1;text-align:center}
+.trainv .mini{background:none;border:1px solid var(--rule-2);color:var(--fg-2);border-radius:999px;
+  padding:5px 11px;font:600 10.5px 'Poppins',sans-serif;cursor:pointer;white-space:nowrap}
+.trainv .mini:hover{color:var(--accent);border-color:var(--accent)}
+
+/* baris set */
+.trainv .sets{width:100%;border-collapse:collapse}
+.trainv .sets th{font:600 9.5px/1.25 'Poppins',sans-serif;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--fg-3);text-align:center;padding:0 0 7px}
+.trainv .sets th i{display:block;font:500 8.5px/1.3 system-ui,sans-serif;letter-spacing:.04em;
+  text-transform:none;color:var(--fg-3);opacity:.7;font-style:normal}
+.trainv .sets th:first-child,.trainv .sets th:nth-child(2){text-align:left}
+.trainv .sets td{padding:4px 0;border-top:1px solid var(--rule)}
+.trainv .sets td+td,.trainv .sets th+th{padding-left:7px}
+.trainv .sets tr:first-child td{border-top:0}
+.trainv .sets .idx{font:600 12px 'IBM Plex Mono',ui-monospace,monospace;color:var(--fg-3);width:22px}
+.trainv .sets .idx.w{color:var(--warn)}
+.trainv .sets .prev{font:400 10.5px 'IBM Plex Mono',ui-monospace,monospace;color:var(--fg-3);
+  white-space:nowrap;width:52px}
+.trainv .sets input{width:100%;background:var(--sunk);border:1px solid transparent;border-radius:8px;
+  padding:10px 2px;text-align:center;font:600 15px 'IBM Plex Mono',ui-monospace,monospace;color:var(--fg);
+  font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.trainv .sets input::-webkit-outer-spin-button,.trainv .sets input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.trainv .sets input:focus{outline:none;border-color:var(--accent);background:var(--bg)}
+.trainv .sets input::placeholder{color:var(--fg-3);font-weight:400}
+.trainv .wcell{width:62px} .trainv .rcell{width:54px} .trainv .icell{width:44px}
+.trainv .sets td.r{text-align:center;width:38px}
+.trainv .done input{background:var(--ok-soft)}
+.trainv .tick{width:34px;height:34px;border-radius:10px;border:1px solid var(--rule-2);background:var(--bg);
+  color:var(--fg-3);font-size:15px;cursor:pointer;display:grid;place-items:center;padding:0}
+.trainv .tick[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
+
+/* cue dan demo */
+.trainv .cues{list-style:none;margin:0;padding:0}
+.trainv .cues li{display:grid;grid-template-columns:auto 1fr;gap:9px;padding:8px 0;
+  border-top:1px solid var(--rule);font-size:13.5px;line-height:1.6;color:var(--fg-2)}
+.trainv .cues .t{font:600 9.5px 'Poppins',sans-serif;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--fg-3);width:62px;padding-top:3px}
+.trainv .cues b{color:var(--fg);font-weight:600}
+.trainv .demo{margin-top:8px}
+.trainv .demo a{display:block;text-align:center;background:var(--sunk);border-radius:10px;
+  padding:11px;font:600 12px 'Poppins',sans-serif;color:var(--accent);text-decoration:none}
+
+/* substitusi */
+.trainv .alts{list-style:none;margin:0;padding:0}
+.trainv .alts li button{width:100%;display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center;
+  text-align:left;background:none;border:0;border-top:1px solid var(--rule);padding:11px 0;
+  cursor:pointer;color:inherit;font:inherit}
+.trainv .alts li button[disabled]{opacity:.45;cursor:default}
+.trainv .an{display:block;font-size:13.5px;font-weight:500;color:var(--fg)}
+.trainv .am{display:block;font-size:11px;line-height:1.5;color:var(--fg-3);margin-top:2px}
+.trainv .back{display:inline-block;margin-left:7px;font:600 8.5px/1 'Poppins',sans-serif;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);
+  border-radius:5px;padding:3px 5px;font-style:normal;vertical-align:1px}
+.trainv .tag2{font:600 9px 'Poppins',sans-serif;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fg-3);white-space:nowrap}
+.trainv .tag2.best{color:var(--ok)}
+
+/* progres di dalam kartu */
+.trainv .spark{width:100%;height:46px;display:block;margin:0 0 10px}
+.trainv .spark .ln{fill:none;stroke:var(--accent);stroke-width:2.2;vector-effect:non-scaling-stroke}
+.trainv .spark .ar{fill:var(--accent);opacity:.1;stroke:none}
+.trainv .spark .pt{fill:var(--accent)}
+.trainv .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 8px}
+.trainv .pg{background:var(--sunk);border-radius:12px;padding:10px 12px}
+.trainv .pg .k{font:600 9px 'Poppins',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-3)}
+.trainv .pg .v{font:600 20px 'Poppins',sans-serif;margin-top:3px;font-variant-numeric:tabular-nums}
+.trainv .pg .d{font:600 11px 'IBM Plex Mono',ui-monospace,monospace;margin-top:2px}
+.trainv .pg .d.up{color:var(--ok)} .trainv .pg .d.dn{color:var(--low)} .trainv .pg .d.fl{color:var(--fg-3)}
+.trainv .plast{list-style:none;margin:0 0 9px;padding:0}
+.trainv .plast li{display:flex;justify-content:space-between;padding:7px 0;
+  border-top:1px solid var(--rule);font:400 12px 'IBM Plex Mono',ui-monospace,monospace;color:var(--fg-2)}
+.trainv .rx{background:var(--ok-soft);border-radius:12px;padding:12px 14px;font-size:13px;
+  line-height:1.6;color:var(--fg-2)}
+.trainv .rx.hold{background:var(--sunk)}
+.trainv .rx b{color:var(--fg);font-weight:600}
+
+/* kartu sesi coach */
+.trainv .cw-act{display:flex;gap:8px;margin-top:12px}
+.trainv .cw-act button{flex:1;border-radius:10px;padding:11px;font:600 12px 'Poppins',sans-serif;
+  cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--bg)}
+.trainv .cw-act button.ghost{background:none;color:var(--accent)}
+.trainv .cw-act button[disabled]{opacity:.45}
+.trainv .ci{list-style:none;margin:11px 0 0;padding:0}
+.trainv .ci li{display:block;padding:10px 0;border-top:1px solid var(--rule)}
+.trainv .ci li.op{background:var(--sunk);border-radius:12px;padding:11px 12px;margin:8px 0;border-top:0}
+.trainv .crow{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;
+  border:0;padding:0;cursor:pointer;color:inherit;font:inherit}
+.trainv .crow .cn{flex:1;font-size:13.5px;font-weight:500;color:var(--fg)}
+.trainv .cn small{display:block;font:400 11px/1.45 system-ui,sans-serif;color:var(--fg-3);margin-top:2px}
+.trainv .cq2{font:600 12px 'IBM Plex Mono',ui-monospace,monospace;color:var(--fg-2);
+  white-space:nowrap;text-align:right}
+.trainv .cq2 small{display:block;font:600 8.5px/1 'Poppins',sans-serif;letter-spacing:.1em;
+  text-transform:uppercase;margin-top:4px}
+.trainv .cq2 small.t-berat{color:var(--accent)} .trainv .cq2 small.t-sedang{color:var(--ok)}
+.trainv .cq2 small.t-ringan{color:var(--fg-3)}
+.trainv .ch{display:flex;gap:9px;align-items:flex-start}
+.trainv .cx{width:26px;height:26px;border:1px solid var(--rule-2);background:var(--bg);border-radius:8px;
+  color:var(--fg-3);cursor:pointer;font-size:14px;line-height:1;padding:0;flex:none}
+.trainv .cin{display:flex;gap:7px;margin-top:9px}
+.trainv .cin label{flex:1}
+.trainv .cin b{display:block;font:600 8.5px/1 'Poppins',sans-serif;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--fg-3);margin:0 0 5px;text-align:center}
+.trainv .cin input{width:100%;background:var(--bg);border:1px solid var(--rule);border-radius:8px;
+  padding:9px 2px;text-align:center;font:600 14px 'IBM Plex Mono',ui-monospace,monospace;color:var(--fg);
+  -moz-appearance:textfield}
+.trainv .cin input::-webkit-outer-spin-button,.trainv .cin input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.trainv .tsel{display:flex;gap:6px;margin-top:9px}
+.trainv .tsel button{flex:1;background:var(--bg);border:1px solid var(--rule);color:var(--fg-3);
+  border-radius:8px;padding:8px 4px;font:600 10.5px 'Poppins',sans-serif;cursor:pointer}
+.trainv .tsel button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+
+/* pemilih gerakan */
+.trainv .pick{margin-top:12px;border-top:1px solid var(--rule);padding-top:12px}
+.trainv .pick .pl{font:600 9.5px 'Poppins',sans-serif;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--fg-3);margin:0 0 8px}
+.trainv .pick input.q{width:100%;background:var(--sunk);border:1px solid transparent;border-radius:10px;
+  padding:11px 12px;font-size:14px;color:var(--fg)}
+.trainv .pick input.q:focus{outline:none;border-color:var(--accent);background:var(--bg)}
+.pchips{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}
+.pchips button{background:var(--sunk);border:1px solid transparent;color:var(--fg-2);border-radius:8px;
+  padding:7px 10px;font:600 11px 'Poppins',sans-serif;cursor:pointer}
+.pchips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.pchips button.alt{border-style:dashed;border-color:var(--rule-2)}
+.pchips button.alt[aria-pressed="true"]{border-style:solid}
+.trainv .plist{list-style:none;margin:0;padding:0;max-height:280px;overflow-y:auto}
+.trainv .plist li button{width:100%;display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center;
+  text-align:left;background:none;border:0;border-top:1px solid var(--rule);padding:10px 0;
+  cursor:pointer;color:inherit;font:inherit}
+.trainv .plist li button[disabled]{opacity:.4;cursor:default}
+.trainv .pn{font-size:13.5px;font-weight:500;color:var(--fg)}
+.trainv .pm{display:block;font:400 11px/1.45 system-ui,sans-serif;color:var(--fg-3);margin-top:2px}
+.trainv .plus{width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent);
+  display:grid;place-items:center;font-size:15px;font-weight:600}
+.trainv .newex{width:100%;margin-top:11px;background:none;border:1px dashed var(--accent);
+  color:var(--accent);border-radius:10px;padding:11px;font:600 12px 'Poppins',sans-serif;cursor:pointer}
+.trainv .pick .dq{margin:15px 0 0;font:600 12.5px 'Poppins',sans-serif;color:var(--fg)}
+.trainv .pick .dh{margin:7px 0 0;font-size:12px;line-height:1.55;color:var(--fg-3)}
+
+/* ledger utang */
+.trainv .debt{list-style:none;margin:0;padding:0}
+.trainv .debt li{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:baseline;
+  padding:9px 0 9px 11px;border-top:1px solid var(--rule);position:relative}
+.trainv .debt li:first-child{border-top:0}
+.trainv .debt li::before{content:'';position:absolute;left:0;top:11px;bottom:11px;width:3px;
+  border-radius:2px;background:var(--rule-2)}
+.trainv .debt .dp{font:600 13px 'Poppins',sans-serif;color:var(--fg);white-space:nowrap}
+.trainv .debt .dd{font:600 12px 'IBM Plex Mono',ui-monospace,monospace;color:var(--fg-2);
+  text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.trainv .debt .ds{font-size:11.5px;color:var(--fg-3);text-align:right;white-space:nowrap}
+.trainv .debt .d-bolong::before{background:var(--bad)}
+.trainv .debt .d-bolong .dd{color:var(--bad)}
+.trainv .debt .d-dobel::before{background:var(--warn)}
+.trainv .debt .d-dobel .ds{color:var(--warn);font-weight:600}
+.trainv .debt .d-coach::before{background:var(--accent)}
+.trainv .debt .d-coach .ds{color:var(--accent)}
+.trainv .debt .d-today::before{background:var(--ok)}
+.trainv .debt .d-today .ds{color:var(--ok)}
+.trainv .debt .d-tahan{opacity:.6}
+.trainv .dnote{margin:11px 0 0;font-size:11.5px;line-height:1.55;color:var(--fg-3)}
+
+/* perut harian */
+.trainv .ablist{list-style:none;margin:12px 0 0;padding:0}
+.trainv .ablist li button{width:100%;display:flex;gap:11px;align-items:center;text-align:left;
+  background:none;border:0;border-top:1px solid var(--rule);padding:12px 0;cursor:pointer;
+  color:inherit;font:inherit}
+.trainv .ablist .box{width:22px;height:22px;border-radius:7px;border:1.6px solid var(--rule-2);flex:none}
+.trainv .ablist button[aria-pressed="true"] .box{background:var(--ok);border-color:var(--ok)}
+.trainv .ablist button[aria-pressed="true"] .box::after{content:'✓';color:#fff;font-size:13px;
+  display:grid;place-items:center;height:100%}
+.trainv .ablist .n{display:block;font-size:14px;font-weight:500;color:var(--fg)}
+.trainv .ablist .d{display:block;font-size:11.5px;color:var(--fg-3);margin-top:2px}
+
+/* ringkasan progres */
+.trainv .sumrow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
+  padding:11px 0;border-top:1px solid var(--rule)}
+.trainv .sumrow .nm{font-size:13.5px;font-weight:500;color:var(--fg)}
+.trainv .sumrow .nm small{display:block;font-size:11px;line-height:1.5;color:var(--fg-3);margin-top:2px}
+.trainv .sumrow .v{font:600 13px 'IBM Plex Mono',ui-monospace,monospace;white-space:nowrap}
+.trainv .sumrow .stt{font:600 9px 'Poppins',sans-serif;letter-spacing:.09em;text-transform:uppercase;
+  padding:4px 8px;border-radius:999px;white-space:nowrap}
+.trainv .sumrow .stt.up{background:var(--ok-soft);color:var(--ok)}
+.trainv .sumrow .stt.dn{background:var(--accent-soft);color:var(--accent)}
+.trainv .sumrow .stt.hold{background:var(--warn-soft);color:var(--warn)}
+.trainv .note{background:var(--sunk);border-radius:14px;padding:14px 16px;margin:16px 0 0}
+.trainv .note p{margin:0;font-size:13px;line-height:1.65;color:var(--fg-2)}
+.trainv .note b{color:var(--fg);font-weight:600}
+
+/* timer istirahat */
+.trest{position:fixed;left:50%;transform:translateX(-50%) translateY(140%);
+  bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));z-index:30;
+  display:flex;align-items:center;gap:11px;background:var(--fg);color:var(--bg);
+  border-radius:999px;padding:11px 14px;box-shadow:var(--lift-lg);
+  transition:transform .3s cubic-bezier(.2,.8,.3,1)}
+.trest.on{transform:translateX(-50%) translateY(0)}
+.trest b{font:600 17px 'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.trest span{font-size:11.5px;opacity:.7}
+.trest button{background:rgba(255,255,255,.14);border:0;color:inherit;border-radius:999px;
+  padding:7px 12px;font:600 11px 'Poppins',sans-serif;cursor:pointer}
+.trainv .msg.on{color:var(--ok)}
