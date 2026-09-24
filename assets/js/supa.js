@@ -36,6 +36,16 @@ window.Supa = (function () {
       return 'Tidak bisa menghubungi server. Periksa sinyal atau Wi-Fi, lalu coba lagi.';
     if (status === 429 || /rate limit|too many/i.test(t))
       return 'Terlalu sering meminta kode. Tunggu satu menit, lalu coba lagi.';
+    if (/invalid login credentials|invalid_grant/i.test(t))
+      return 'Email atau kata sandinya salah.';
+    if (/user already registered|already been registered/i.test(t))
+      return 'Email ini sudah punya akun. Pakai tombol Masuk, bukan Daftar.';
+    if (/password should be|weak.?password|at least/i.test(t))
+      return 'Kata sandi minimal enam karakter.';
+    if (/email.*not confirmed|confirm/i.test(t))
+      return 'Supabase masih meminta konfirmasi email. Matikan Confirm email di Authentication, Providers, Email.';
+    if (/signups? not allowed|disabled/i.test(t))
+      return 'Pendaftaran sedang dimatikan di Supabase. Nyalakan Allow new users to sign up di Authentication, Providers, Email.';
     if (/expired|invalid|otp/i.test(t))
       return 'Kodenya salah atau sudah kedaluwarsa. Minta kode baru.';
     return t || 'Gagal tanpa keterangan.';
@@ -55,6 +65,29 @@ window.Supa = (function () {
     return j;
   }
 
+  function pakai(j) {
+    if (!j.access_token) throw new Error('Server tidak memberi sesi. Coba lagi.');
+    simpan({ access_token:j.access_token, refresh_token:j.refresh_token,
+             expires_at: Date.now() + (j.expires_in || 3600) * 1000, user:j.user });
+    return j.user;
+  }
+
+  /* Kata sandi. Cara masuk utama, dan sengaja dipilih di atas kode email.
+     Supabase mengunci penyuntingan template email di balik SMTP sendiri, jadi
+     tanpa SMTP yang terkirim selalu tautan, bukan kode. Untuk satu orang di
+     dua alat, memasang server email demi mengirim kode ke diri sendiri itu
+     mesin besar untuk masalah kecil. Kata sandi disimpan browser sekali per
+     alat dan tidak pernah butuh email sama sekali. */
+  async function masukSandi(email, sandi) {
+    return pakai(await auth('token?grant_type=password', { email:email, password:sandi }));
+  }
+  async function daftar(email, sandi) {
+    const j = await auth('signup', { email:email, password:sandi });
+    if (j.access_token) return pakai(j);
+    /* Tanpa sesi berarti Confirm email masih menyala di Supabase. */
+    throw new Error('Akun dibuat tapi Supabase meminta konfirmasi email. Matikan Confirm email di Authentication, Providers, Email, lalu daftar lagi.');
+  }
+
   /* Kode enam angka lewat email, bukan tautan yang harus diklik.
      Tautan magic link membuka Safari, bukan aplikasi yang sudah kamu pasang
      di layar depan, jadi sesinya mendarat di tempat yang salah dan kamu
@@ -64,11 +97,7 @@ window.Supa = (function () {
     return true;
   }
   async function verifikasi(email, token) {
-    const j = await auth('verify', { email: email, token: String(token).trim(), type: 'email' });
-    if (!j.access_token) throw new Error('Kode ditolak. Periksa lagi atau minta kode baru.');
-    simpan({ access_token:j.access_token, refresh_token:j.refresh_token,
-             expires_at: Date.now() + (j.expires_in || 3600) * 1000, user:j.user });
-    return j.user;
+    return pakai(await auth('verify', { email: email, token: String(token).trim(), type: 'email' }));
   }
   async function segarkan() {
     if (!ses || !ses.refresh_token) return false;
@@ -156,6 +185,6 @@ window.Supa = (function () {
 
   tangkapTautan();
 
-  return { ada, masuk, user, kirimKode, verifikasi, keluar, siap, pilih, tulis, segarkan, ramah,
+  return { ada, masuk, user, kirimKode, verifikasi, masukSandi, daftar, keluar, siap, pilih, tulis, segarkan, ramah,
            tangkapTautan, ambilUser, url: () => URL };
 })();

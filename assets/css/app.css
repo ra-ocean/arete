@@ -1162,3 +1162,7 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 #akun-body .msg.bad{color:var(--bad)}
 #akun-body input{font-variant-numeric:tabular-nums}
 #ak-kode{letter-spacing:.32em;font-size:20px;font-weight:600;text-align:center}
+.tautkecil{display:block;width:100%;margin-top:14px;background:none;border:0;cursor:pointer;
+  color:var(--fg-3);font:500 12px 'Poppins',sans-serif;text-decoration:underline;
+  text-underline-offset:3px;padding:4px}
+.tautkecil:hover{color:var(--accent)}

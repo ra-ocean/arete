@@ -146,7 +146,7 @@ window.Sync = (function () {
   }
 
   /* ---------- tampilan kartu Akun ---------- */
-  let tahap = 'email', email = '';
+  let tahap = 'sandi', email = '';
 
   function render() {
     const el = D.$('#akun-body'); if (!el) return;
@@ -160,19 +160,32 @@ window.Sync = (function () {
       return;
     }
     if (!Supa.masuk()) {
-      el.innerHTML = tahap === 'email'
-        ? `<p class="note-sm">Masuk sekali di tiap alat, lalu catatanmu muncul di dua duanya. Kodenya dikirim ke email, tidak ada kata sandi yang perlu diingat.</p>
-           <div class="field"><label for="ak-email">Email</label><input id="ak-email" type="email" inputmode="email" autocomplete="email" placeholder="${esc(email) || 'nama@email.com'}" value="${esc(email)}"></div>
-           <button class="btn ghost" id="ak-kirim" type="button">Kirim kode</button>
-           <div class="msg" id="ak-msg"></div>`
-        : `<p class="note-sm">Kode enam angka sudah dikirim ke <b>${esc(email)}</b>. Buka emailnya, lalu ketik kodenya di sini. Jangan klik tautannya, karena tautan membuka browser dan bukan aplikasi ini.</p>
-           <div class="field"><label for="ak-kode">Kode</label><input id="ak-kode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456"></div>
-           <div class="btnrow">
-             <button class="btn ghost sm" id="ak-verif" type="button">Masuk</button>
-             <button class="btn ghost sm" id="ak-ulang" type="button">Kirim ulang</button>
-             <button class="btn ghost sm" id="ak-batal" type="button">Ganti email</button>
-           </div>
-           <div class="msg" id="ak-msg"></div>`;
+      if (tahap === 'sandi') {
+        el.innerHTML = `<p class="note-sm">Masuk sekali di tiap alat, lalu catatanmu muncul di dua duanya. Kata sandinya disimpan browser, jadi cuma diketik sekali per alat.</p>
+          <div class="field"><label for="ak-email">Email</label><input id="ak-email" type="email" inputmode="email" autocomplete="username" placeholder="nama@email.com" value="${esc(email)}"></div>
+          <div class="field"><label for="ak-sandi">Kata sandi</label><input id="ak-sandi" type="password" autocomplete="current-password" placeholder="minimal 6 karakter"></div>
+          <div class="btnrow">
+            <button class="btn ghost sm" id="ak-masuk" type="button">Masuk</button>
+            <button class="btn ghost sm" id="ak-daftar" type="button">Daftar akun baru</button>
+          </div>
+          <div class="msg" id="ak-msg"></div>
+          <button class="tautkecil" id="ak-keotp" type="button">Masuk pakai kode email</button>`;
+      } else if (tahap === 'email') {
+        el.innerHTML = `<p class="note-sm">Kode dikirim ke email. Cara ini butuh SMTP sendiri terpasang di Supabase. Kalau belum, yang datang tautan, bukan kode.</p>
+          <div class="field"><label for="ak-email">Email</label><input id="ak-email" type="email" inputmode="email" autocomplete="email" placeholder="nama@email.com" value="${esc(email)}"></div>
+          <button class="btn ghost" id="ak-kirim" type="button">Kirim kode</button>
+          <div class="msg" id="ak-msg"></div>
+          <button class="tautkecil" id="ak-kesandi" type="button">Kembali ke kata sandi</button>`;
+      } else {
+        el.innerHTML = `<p class="note-sm">Kode enam angka sudah dikirim ke <b>${esc(email)}</b>. Ketik kodenya di sini. Kalau yang datang tautan dan bukan kode, klik saja tautannya, aplikasi bisa menerima dua duanya.</p>
+          <div class="field"><label for="ak-kode">Kode</label><input id="ak-kode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456"></div>
+          <div class="btnrow">
+            <button class="btn ghost sm" id="ak-verif" type="button">Masuk</button>
+            <button class="btn ghost sm" id="ak-ulang" type="button">Kirim ulang</button>
+            <button class="btn ghost sm" id="ak-batal" type="button">Batal</button>
+          </div>
+          <div class="msg" id="ak-msg"></div>`;
+      }
     } else {
       const u = Supa.user() || {};
       let at = null; try { at = localStorage.getItem('arete_sync_at'); } catch (e) {}
@@ -192,38 +205,57 @@ window.Sync = (function () {
     pasang();
   }
   const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const emailOk = v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
 
   function pasang() {
     const $ = D.$;
+    const baca = () => ({ e:(($('#ak-email')||{}).value || '').trim(), s:(($('#ak-sandi')||{}).value || '') });
+
+    const m = $('#ak-masuk');
+    if (m) m.onclick = async () => {
+      const { e, s } = baca();
+      if (!emailOk(e)) { kabar('Alamat emailnya belum benar.', true); return; }
+      if (s.length < 6) { kabar('Kata sandi minimal enam karakter.', true); return; }
+      m.disabled = true; kabar('Memeriksa…');
+      try { await Supa.masukSandi(e, s); email = e; render(); kabar('Masuk. Menyinkronkan…'); await putar(false); }
+      catch (err) { m.disabled = false; kabar(err.message, true); }
+    };
+    const d = $('#ak-daftar');
+    if (d) d.onclick = async () => {
+      const { e, s } = baca();
+      if (!emailOk(e)) { kabar('Alamat emailnya belum benar.', true); return; }
+      if (s.length < 6) { kabar('Kata sandi minimal enam karakter.', true); return; }
+      d.disabled = true; kabar('Membuat akun…');
+      try { await Supa.daftar(e, s); email = e; render(); kabar('Akun dibuat. Menyinkronkan…'); await putar(false); }
+      catch (err) { d.disabled = false; kabar(err.message, true); }
+    };
+    const ko = $('#ak-keotp');   if (ko) ko.onclick = () => { tahap = 'email'; render(); };
+    const ks = $('#ak-kesandi'); if (ks) ks.onclick = () => { tahap = 'sandi'; render(); };
+
     const k = $('#ak-kirim');
     if (k) k.onclick = async () => {
-      const v = ($('#ak-email').value || '').trim();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) { kabar('Alamat emailnya belum benar.', true); return; }
-      k.disabled = true; kabar('Mengirim kode…');
-      try { await Supa.kirimKode(v); email = v; tahap = 'kode'; render(); kabar('Kode terkirim. Cek email, termasuk folder spam.'); }
-      catch (e) { k.disabled = false; kabar('Gagal: ' + e.message, true); }
+      const v = (($('#ak-email')||{}).value || '').trim();
+      if (!emailOk(v)) { kabar('Alamat emailnya belum benar.', true); return; }
+      k.disabled = true; kabar('Mengirim…');
+      try { await Supa.kirimKode(v); email = v; tahap = 'kode'; render(); kabar('Terkirim. Cek email, termasuk folder spam.'); }
+      catch (e) { k.disabled = false; kabar(e.message, true); }
     };
     const v = $('#ak-verif');
     if (v) v.onclick = async () => {
-      const kode = ($('#ak-kode').value || '').trim();
+      const kode = (($('#ak-kode')||{}).value || '').trim();
       if (kode.length < 6) { kabar('Kodenya enam angka.', true); return; }
       v.disabled = true; kabar('Memeriksa…');
-      try {
-        await Supa.verifikasi(email, kode);
-        tahap = 'email'; render();
-        kabar('Masuk. Menyinkronkan…');
-        await putar(false);
-      } catch (e) { v.disabled = false; kabar(e.message, true); }
+      try { await Supa.verifikasi(email, kode); tahap = 'sandi'; render(); kabar('Masuk. Menyinkronkan…'); await putar(false); }
+      catch (e) { v.disabled = false; kabar(e.message, true); }
     };
     const u = $('#ak-ulang');
     if (u) u.onclick = async () => { try { await Supa.kirimKode(email); kabar('Kode baru terkirim.'); }
-                                     catch (e) { kabar('Gagal: ' + e.message, true); } };
-    const b = $('#ak-batal');
-    if (b) b.onclick = () => { tahap = 'email'; render(); };
-    const s = $('#ak-sync');
-    if (s) s.onclick = async () => { s.disabled = true; kabar('Menyinkronkan…'); await putar(false); s.disabled = false; };
+                                     catch (e) { kabar(e.message, true); } };
+    const b = $('#ak-batal');  if (b) b.onclick = () => { tahap = 'sandi'; render(); };
+    const sy = $('#ak-sync');
+    if (sy) sy.onclick = async () => { sy.disabled = true; kabar('Menyinkronkan…'); await putar(false); sy.disabled = false; };
     const q = $('#ak-keluar');
-    if (q) q.onclick = () => { Supa.keluar(); render(); kabar('Sudah keluar. Datamu tetap ada di alat ini.'); };
+    if (q) q.onclick = () => { Supa.keluar(); tahap = 'sandi'; render(); kabar('Sudah keluar. Datamu tetap ada di alat ini.'); };
   }
 
   async function init(deps) {
