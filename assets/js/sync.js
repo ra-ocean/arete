@@ -169,6 +169,8 @@ window.Sync = (function () {
             <button class="btn ghost sm" id="ak-daftar" type="button">Daftar akun baru</button>
           </div>
           <div class="msg" id="ak-msg"></div>
+          <div id="ak-cek"></div>
+          <button class="tautkecil" id="ak-periksa" type="button">Periksa setelan Supabase</button>
           <button class="tautkecil" id="ak-keotp" type="button">Masuk pakai kode email</button>`;
       } else if (tahap === 'email') {
         el.innerHTML = `<p class="note-sm">Kode dikirim ke email. Cara ini butuh SMTP sendiri terpasang di Supabase. Kalau belum, yang datang tautan, bukan kode.</p>
@@ -218,7 +220,19 @@ window.Sync = (function () {
       if (s.length < 6) { kabar('Kata sandi minimal enam karakter.', true); return; }
       m.disabled = true; kabar('Memeriksa…');
       try { await Supa.masukSandi(e, s); email = e; render(); kabar('Masuk. Menyinkronkan…'); await putar(false); }
-      catch (err) { m.disabled = false; kabar(err.message, true); }
+      catch (err) {
+        m.disabled = false; kabar(err.message, true);
+        /* Kalau sandinya ditolak, periksa sendiri sebabnya daripada menyuruh
+           dia menebak. Confirm email yang menyala memberi pesan yang sama
+           persis dengan sandi salah, dan itu yang bikin orang putus asa. */
+        if (/salah/i.test(err.message)) {
+          const st = await Supa.setelan();
+          if (st && st.mailer_autoconfirm === false) {
+            const box = $('#ak-cek');
+            if (box) box.innerHTML = `<div class="cek bad"><b>Kemungkinan besar bukan sandimu yang salah.</b> Confirm email masih menyala di Supabase, jadi akun yang terlanjur kamu buat belum aktif dan Supabase menolaknya dengan pesan yang sama persis seperti sandi salah. Matikan Confirm email di Authentication, Sign In, Email, lalu hapus user itu di Authentication, Users, baru daftar lagi.</div>`;
+          }
+        }
+      }
     };
     const d = $('#ak-daftar');
     if (d) d.onclick = async () => {
@@ -228,6 +242,26 @@ window.Sync = (function () {
       d.disabled = true; kabar('Membuat akun…');
       try { await Supa.daftar(e, s); email = e; render(); kabar('Akun dibuat. Menyinkronkan…'); await putar(false); }
       catch (err) { d.disabled = false; kabar(err.message, true); }
+    };
+    const pr = $('#ak-periksa');
+    if (pr) pr.onclick = async () => {
+      const box = $('#ak-cek'); if (!box) return;
+      pr.disabled = true; box.innerHTML = '<p class="note-sm">Memeriksa…</p>';
+      const st = await Supa.setelan();
+      pr.disabled = false;
+      if (!st) { box.innerHTML = `<div class="cek bad"><b>Tidak bisa menghubungi Supabase.</b> Periksa sinyal, atau alamat di <code>config.js</code>.</div>`; return; }
+      const baris = [];
+      const ok = (b, t) => baris.push(`<div class="cek ${b ? 'ok' : 'bad'}">${t}</div>`);
+      const emailOn = !!(st.external && st.external.email);
+      ok(emailOn, emailOn ? 'Masuk lewat email <b>aktif</b>.'
+        : '<b>Email belum aktif.</b> Nyalakan di Authentication, Sign In, Email.');
+      ok(!st.disable_signup, st.disable_signup
+        ? '<b>Pendaftaran dimatikan.</b> Nyalakan Allow new users to sign up, daftar dulu, lalu matikan lagi.'
+        : 'Pendaftaran <b>terbuka</b>. Matikan lagi setelah dua alatmu masuk.');
+      ok(st.mailer_autoconfirm, st.mailer_autoconfirm
+        ? 'Confirm email <b>mati</b>, akun langsung aktif setelah daftar.'
+        : '<b>Confirm email masih menyala.</b> Ini penyebab paling sering kata sandi ditolak padahal benar: akunmu terlanjur dibuat tapi belum aktif. Matikan di Authentication, Sign In, Email, lalu hapus user itu di Authentication, Users, baru daftar lagi.');
+      box.innerHTML = baris.join('');
     };
     const ko = $('#ak-keotp');   if (ko) ko.onclick = () => { tahap = 'email'; render(); };
     const ks = $('#ak-kesandi'); if (ks) ks.onclick = () => { tahap = 'sandi'; render(); };

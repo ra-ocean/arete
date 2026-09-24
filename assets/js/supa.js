@@ -78,14 +78,28 @@ window.Supa = (function () {
      dua alat, memasang server email demi mengirim kode ke diri sendiri itu
      mesin besar untuk masalah kecil. Kata sandi disimpan browser sekali per
      alat dan tidak pernah butuh email sama sekali. */
+  /* Supabase membuka setelan auth project lewat endpoint publik ini. Dipakai
+     untuk memberi tahu persis apa yang salah, bukan menyuruh menebak. */
+  async function setelan() {
+    try {
+      const r = await fetch(`${URL}/auth/v1/settings`, { headers:{ 'apikey':KEY } });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch (e) { return null; }
+  }
+
   async function masukSandi(email, sandi) {
     return pakai(await auth('token?grant_type=password', { email:email, password:sandi }));
   }
   async function daftar(email, sandi) {
     const j = await auth('signup', { email:email, password:sandi });
     if (j.access_token) return pakai(j);
-    /* Tanpa sesi berarti Confirm email masih menyala di Supabase. */
-    throw new Error('Akun dibuat tapi Supabase meminta konfirmasi email. Matikan Confirm email di Authentication, Providers, Email, lalu daftar lagi.');
+    /* Dua sebab berbeda bisa sama sama mengembalikan user tanpa sesi.
+       Kalau identities kosong, emailnya sudah terdaftar dan Supabase sengaja
+       tidak memberi tahu demi privasi. Kalau tidak, Confirm email menyala. */
+    if (j.user && Array.isArray(j.user.identities) && j.user.identities.length === 0)
+      throw new Error('Email ini sudah punya akun. Pakai tombol Masuk, bukan Daftar.');
+    throw new Error('Akun dibuat tapi belum aktif karena Confirm email masih menyala di Supabase. Matikan dulu di Authentication, Sign In, Email, lalu hapus user itu di Authentication, Users, dan daftar lagi.');
   }
 
   /* Kode enam angka lewat email, bukan tautan yang harus diklik.
@@ -185,6 +199,6 @@ window.Supa = (function () {
 
   tangkapTautan();
 
-  return { ada, masuk, user, kirimKode, verifikasi, masukSandi, daftar, keluar, siap, pilih, tulis, segarkan, ramah,
+  return { ada, masuk, user, kirimKode, verifikasi, masukSandi, daftar, keluar, siap, pilih, tulis, segarkan, ramah, setelan,
            tangkapTautan, ambilUser, url: () => URL };
 })();

@@ -921,7 +921,7 @@ window.TRAIN = (function () {
           ${exCard(id, saved)}
         </div>`;
       }).join('')}</div>
-      <button class="btn" id="abs-save" type="button">Simpan perut hari ini</button>
+      <button class="btn" id="abs-save" type="button">Simpan sesi harian</button>
       <div class="msg" id="abs-msg"></div>
       <p class="dnote">Perut masuk sebagai pola Core. Begitu tersimpan, hitungan utang Core ikut direset dan beban perut muncul di peta otot.</p>`;
   }
@@ -1229,7 +1229,7 @@ window.TRAIN = (function () {
          ikut terhapus karena kartu perut digambar ulang seluruhnya. */
       if (D.onChange) D.onChange();
       if (window.Sync) Sync.dorong();
-      flash(`Tersimpan. ${items.length} gerakan perut, ${items.reduce((x, y) => x + y.sets.length, 0)} set. Pola Core ikut direset.`, '#abs-msg');
+      flash(`Sesi harian tersimpan. ${items.length} gerakan, ${items.reduce((x, y) => x + y.sets.length, 0)} set. Pola Core ikut direset.`, '#abs-msg');
     };
 
     /* simpan sesi */
