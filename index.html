@@ -154,11 +154,6 @@
       <div class="note"><p><b>Baca dua angka ini bersamaan, jangan salah satu.</b> Kamu sedang defisit menuju 67 kg. Dalam defisit, volume yang turun sambil estimasi 1RM bertahan itu bukan kemunduran, itu hasil yang dicari. Yang perlu dikhawatirkan cuma kalau keduanya turun bersamaan lebih dari dua minggu.</p></div>
     </div>
 
-    <div class="trest" id="tr-rest">
-      <b id="tr-rest-t">2:00</b><span>Istirahat</span>
-      <button id="tr-rest-add" type="button">+30d</button>
-      <button id="tr-rest-skip" type="button">Lewati</button>
-    </div>
   </section>
 
   <!-- ============ TUBUH ============ -->
@@ -213,13 +208,22 @@
     <h2 class="sechead">Sasaran</h2>
 
     <div class="card">
-      <div class="card-head"><h2>Lomba dan badan</h2></div>
+      <div class="card-head"><h2>Lari</h2></div>
       <div class="row">
         <div class="field"><label for="g-race">Tanggal lomba</label><input id="g-race" type="date"></div>
-        <div class="field"><label for="g-weight">Berat sasaran, kg</label><input id="g-weight" type="number" step="0.5" inputmode="decimal"></div>
+        <div class="field"><label for="g-racekm">Jarak lomba, km</label><input id="g-racekm" type="number" step="0.5" inputmode="decimal" placeholder="10"></div>
       </div>
-      <div class="field half"><label for="g-bf">Body fat sasaran, %</label><input id="g-bf" type="number" step="0.5" inputmode="decimal"></div>
-      <p class="note-sm">Berat sasaran dipakai sebagai garis acuan di grafik berat, dan tanggal lomba dipakai penyusun sesi untuk menghentikan plyometrik sepuluh hari sebelum lomba.</p>
+      <p class="note-sm">Tanggal lomba dipakai penyusun sesi untuk menghentikan plyometrik sepuluh hari sebelum hari H, dan menampilkan hitungan mundur di Beranda.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Badan</h2></div>
+      <div class="row">
+        <div class="field"><label for="g-weight">Berat sasaran, kg</label><input id="g-weight" type="number" step="0.5" inputmode="decimal"></div>
+        <div class="field"><label for="g-bf">Body fat sasaran, %</label><input id="g-bf" type="number" step="0.5" inputmode="decimal"></div>
+      </div>
+      <div class="field"><label for="g-bodydate">Tanggal sasaran badan</label><input id="g-bodydate" type="date"></div>
+      <p class="note-sm" id="g-laju"></p>
     </div>
 
     <div class="card">
@@ -288,7 +292,7 @@
       <div class="msg" id="wipe-msg"></div>
     </div>
 
-    <p class="ver">Areté v18 · lokal + intervals.icu + Supabase</p>
+    <p class="ver">Areté v19 · lokal + intervals.icu + Supabase</p>
   </section>
 
   </main>
@@ -296,6 +300,16 @@
 </div>
 
 <!-- ============ NAV ============ -->
+<!-- Timer istirahat sengaja di luar .app. Pembungkus .app punya animasi
+     transform saat splash selesai, dan elemen dengan transform menjadi acuan
+     baru untuk position:fixed. Selama timer ada di dalamnya, dia menempel di
+     dasar halaman, bukan di dasar layar, jadi hilang saat halaman digulir. -->
+<div class="trest" id="tr-rest">
+  <b id="tr-rest-t">2:00</b><span>Istirahat</span>
+  <button id="tr-rest-add" type="button">+30d</button>
+  <button id="tr-rest-skip" type="button">Lewati</button>
+</div>
+
 <nav class="nav" aria-label="Navigasi utama">
  <span class="navbg" aria-hidden="true"></span>
  <ul>

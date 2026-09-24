@@ -103,6 +103,9 @@ window.Store = (function () {
 /* Target & baseline — dari analisis nutrisi 2 Sep 2026. Bisa diubah di Profil. */
 window.DEFAULT_GOALS = {
   race_date: '2026-09-20',
+  race_km: 10,
+  body_target_date: '2026-12-03',
+  weight_target: 67,
   bf_estimate_current: 19,
   bf_target_pct: 14,
   protein_target_g: 126,

@@ -1098,9 +1098,12 @@ window.TRAIN = (function () {
     const el = D.$('#tr-rest'), t = D.$('#tr-rest-t');
     if (!el) return;
     rt = secs; t.textContent = fmtT(rt); el.classList.add('on');
+    /* Halaman diberi ruang tambahan di bawah selama timer tampil, supaya
+       tombol Simpan tidak tertutup olehnya saat digulir sampai habis. */
+    document.body.classList.add('rest-on');
     clearInterval(rh);
     rh = setInterval(() => { rt--; t.textContent = fmtT(Math.max(0, rt));
-      if (rt <= 0) { clearInterval(rh); el.classList.remove('on'); } }, 1000);
+      if (rt <= 0) { clearInterval(rh); el.classList.remove('on'); document.body.classList.remove('rest-on'); } }, 1000);
   }
   const fmtT = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 
@@ -1245,7 +1248,8 @@ window.TRAIN = (function () {
       if (window.Sync) Sync.dorong();
     };
     const rs = $('#tr-rest-skip'), ra = $('#tr-rest-add');
-    if (rs) rs.onclick = () => { clearInterval(rh); $('#tr-rest').classList.remove('on'); };
+    if (rs) rs.onclick = () => { clearInterval(rh); $('#tr-rest').classList.remove('on');
+      document.body.classList.remove('rest-on'); };
     if (ra) ra.onclick = () => { rt += 30; $('#tr-rest-t').textContent = fmtT(rt); };
   }
   /* Baca baris set yang sudah dicentang dari satu wadah. */

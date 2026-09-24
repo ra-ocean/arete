@@ -295,6 +295,34 @@
     Muscle.paint($('#mus-svg'), musData, musSrc, musSel);
   }
 
+  /* Laju yang dibutuhkan untuk sampai ke berat sasaran pada tanggalnya.
+     Angka ini yang membuat kolom tanggal sasaran ada gunanya, bukan sekadar
+     tanggal yang diketik lalu dilupakan. */
+  function renderLaju() {
+    const el = $('#g-laju'); if (!el) return;
+    const wl = logs.filter(l => l.value.weight != null);
+    const kini = avg(logs.slice(-7).map(l => l.value.weight).filter(v => v != null));
+    const tgt = goals.weight_target, tgl = goals.body_target_date;
+    if (kini == null || tgt == null || !tgl) {
+      el.textContent = 'Isi berat sasaran dan tanggalnya, lalu Areté menghitung laju per minggu yang dibutuhkan dan memeriksa apakah itu masuk akal.';
+      return;
+    }
+    const minggu = UI.daysUntil(tgl) / 7;
+    if (minggu <= 0) { el.textContent = 'Tanggal sasaran sudah lewat. Ganti tanggalnya supaya lajunya bisa dihitung.'; return; }
+    const laju = (kini - tgt) / minggu;
+    const a = Math.abs(laju).toFixed(2).replace('.', ',');
+    if (Math.abs(laju) < 0.02) {
+      el.innerHTML = `Rata-rata tujuh harimu <b>${kini.toFixed(1)} kg</b>, praktis sudah di sasaran. Yang dikerjakan sekarang mempertahankan, bukan menurunkan.`;
+    } else if (laju > 0) {
+      const ket = laju > 0.75 ? ' Ini terlalu cepat untuk dijalani sambil mengejar kekuatan. Mundurkan tanggalnya, atau turunkan sasarannya.'
+                : laju > 0.5  ? ' Ini batas atas yang masih wajar. Di laju segini otot ikut terpotong kalau protein kurang.'
+                : '';
+      el.innerHTML = `Dari rata-rata tujuh hari <b>${kini.toFixed(1)} kg</b> ke <b>${tgt} kg</b> dalam ${Math.round(minggu)} minggu, butuh turun sekitar <b>${a} kg per minggu</b>.${ket}`;
+    } else {
+      el.innerHTML = `Dari rata-rata tujuh hari <b>${kini.toFixed(1)} kg</b> ke <b>${tgt} kg</b>, ini kenaikan sekitar <b>${a} kg per minggu</b>.`;
+    }
+  }
+
   /* ================= LATIHAN ================= */
   function renderTrain() {
     if (!window.TRAIN) return;
@@ -896,9 +924,17 @@
       statTile('Rata-rata 7 hari', avg7 == null ? 'belum' : avg7.toFixed(1), avg7 == null ? '' : ' kg', avg7 == null) +
       statTile('vs 7 hari sebelumnya', dW == null ? '—' : (dW > 0 ? '+' : '') + dW.toFixed(2), dW == null ? '' : ' kg', dW == null);
     const bn = $('#berat-note');
-    if (bn) bn.textContent = avg7 == null
-      ? 'Isi berat tiap pagi setelah bangun dan sebelum makan. Satu angka saja cukup.'
-      : `Sasaran 67 kg di Desember butuh sekitar 0,25 kg per minggu. Di laju itu timbangan akan datar 10 sampai 14 hari berturut-turut, dan itu normal. Yang dibaca rata-rata tujuh hari, bukan angka hari ini.`;
+    if (bn) {
+      if (avg7 == null) bn.textContent = 'Isi berat tiap pagi setelah bangun dan sebelum makan. Satu angka saja cukup.';
+      else {
+        const tgt = goals.weight_target, tgl = goals.body_target_date;
+        const mg = tgl ? UI.daysUntil(tgl) / 7 : null;
+        const laju = (tgt != null && mg && mg > 0) ? (avg7 - tgt) / mg : null;
+        bn.textContent = laju
+          ? `Sasaran ${tgt} kg butuh sekitar ${Math.abs(laju).toFixed(2).replace('.', ',')} kg per minggu. Di laju selambat itu timbangan akan datar 10 sampai 14 hari berturut-turut, dan itu normal. Yang dibaca rata-rata tujuh hari, bukan angka hari ini.`
+          : 'Yang dibaca rata-rata tujuh hari, bukan angka hari ini. Berat harian bergoyang karena hidrasi dan isi perut.';
+      }
+    }
     const tl = $('#tape-list');
     if (tl) {
       const rows = logs.filter(l => TAPE.some(([k]) => l.value[k] != null)).slice(-4).reverse();
@@ -931,7 +967,10 @@
     $('#g-race').value = goals.race_date; $('#g-prot').value = goals.protein_target_g;
     $('#g-cal').value = goals.cal_target;
     $('#g-bf').value = goals.bf_target_pct; $('#g-tdee').value = goals.tdee_low;
-    if ($('#g-weight')) $('#g-weight').value = goals.weight_target != null ? goals.weight_target : 67;
+    if ($('#g-weight'))   $('#g-weight').value   = goals.weight_target != null ? goals.weight_target : 67;
+    if ($('#g-racekm'))   $('#g-racekm').value   = goals.race_km != null ? goals.race_km : '';
+    if ($('#g-bodydate')) $('#g-bodydate').value = goals.body_target_date || '';
+    renderLaju();
     if (window.TRAIN) { TRAIN.renderGear($('#gear-body')); TRAIN.renderLib($('#lib-body')); }
     const kv=(k,v)=>`<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
     const w = wellness&&wellness.ok, a = activities&&activities.ok;
@@ -1225,7 +1264,9 @@
       goals.race_date = $('#g-race').value || goals.race_date;
       goals.protein_target_g = num($('#g-prot').value) ?? goals.protein_target_g;
       goals.cal_target = num($('#g-cal').value) ?? goals.cal_target;
-      if ($('#g-weight')) goals.weight_target = num($('#g-weight').value) ?? goals.weight_target;
+      if ($('#g-weight'))   goals.weight_target    = num($('#g-weight').value) ?? goals.weight_target;
+      if ($('#g-racekm'))   goals.race_km          = num($('#g-racekm').value) ?? goals.race_km;
+      if ($('#g-bodydate')) goals.body_target_date = $('#g-bodydate').value || goals.body_target_date;
       goals.bf_target_pct = num($('#g-bf').value) ?? goals.bf_target_pct;
       goals.tdee_low = num($('#g-tdee').value) ?? goals.tdee_low;
       await Store.put('meta','goals',goals); if (window.Sync) Sync.tandaiSetting(); renderAll(); flash('#g-msg','Sasaran disimpan.');

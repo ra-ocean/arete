@@ -228,6 +228,7 @@ window.Sync = (function () {
 
   async function init(deps) {
     D = deps;
+    if (Supa.ada() && Supa.masuk() && !Supa.user()) await Supa.ambilUser();
     render();
     if (Supa.ada() && Supa.masuk()) { await putar(true); }
   }

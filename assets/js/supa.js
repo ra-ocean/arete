@@ -82,10 +82,43 @@ window.Supa = (function () {
   }
   function keluar() { simpan(null); }
 
+  /* Jaring pengaman kalau tautan di email yang diklik, bukan kodenya diketik.
+     Supabase memulangkan token di bagian pagar alamat. Kalau ada, sesinya
+     dipungut di sini dan alamatnya dibersihkan supaya token tidak tertinggal
+     di riwayat browser. */
+  function tangkapTautan() {
+    const h = location.hash || '';
+    if (h.indexOf('access_token=') < 0) return false;
+    const q = new URLSearchParams(h.replace(/^#/, ''));
+    const at = q.get('access_token'), rt = q.get('refresh_token');
+    if (!at) return false;
+    simpan({ access_token:at, refresh_token:rt,
+             expires_at: Date.now() + (+(q.get('expires_in') || 3600)) * 1000, user:null });
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    return true;
+  }
+
+  /* Siapa yang sedang masuk. Dipanggil kalau sesi datang dari tautan, karena
+     tautan tidak membawa data pengguna. */
+  async function ambilUser() {
+    if (!ses || !ses.access_token) return null;
+    try {
+      const r = await fetch(`${URL}/auth/v1/user`, {
+        headers:{ 'apikey':KEY, 'Authorization':'Bearer ' + ses.access_token } });
+      if (!r.ok) return null;
+      const u = await r.json();
+      if (u && u.id) { ses.user = u; simpan(ses); }
+      return u;
+    } catch (e) { return null; }
+  }
+
   async function siap() {
     if (!masuk()) return false;
-    if (ses.expires_at && ses.expires_at - Date.now() < 120000) return await segarkan();
-    return true;
+    if (ses.expires_at && ses.expires_at - Date.now() < 120000) {
+      if (!(await segarkan())) return false;
+    }
+    if (!ses.user) await ambilUser();
+    return !!(ses && ses.user && ses.user.id);
   }
 
   /* PostgREST. Satu pintu untuk select dan upsert. */
@@ -121,6 +154,8 @@ window.Supa = (function () {
   const pilih  = (tabel, query) => rest(tabel, { query:query });
   const tulis  = (tabel, rows)  => rest(tabel, { method:'POST', body:rows, upsert:true });
 
+  tangkapTautan();
+
   return { ada, masuk, user, kirimKode, verifikasi, keluar, siap, pilih, tulis, segarkan, ramah,
-           url: () => URL };
+           tangkapTautan, ambilUser, url: () => URL };
 })();
