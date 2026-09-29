@@ -33,8 +33,9 @@ window.Sync = (function () {
       D.Store.get('meta','goals'), D.Store.get('meta','profile'), D.Store.get('meta','targets')
     ]);
     const t = window.TRAIN ? TRAIN.exportSettings() : {};
+    let rst = null; try { rst = localStorage.getItem('arete_reset_at'); } catch (e) {}
     const data = { goals:goals||null, profile:profile||null, targets:targets||null,
-                   gear:t.gear||{}, mine:t.mine||{} };
+                   gear:t.gear||{}, mine:t.mine||{}, reset_at: rst || null };
     let u = null;
     try { u = localStorage.getItem('arete_setting_u'); } catch (e) {}
     return { data:data, updated_at: u || '1970-01-01T00:00:00Z' };
@@ -59,6 +60,26 @@ window.Sync = (function () {
       if (!(await Supa.siap())) throw new Error('Sesi kedaluwarsa, masuk lagi.');
       const uid = Supa.user().id;
       let naik = 0, turun = 0;
+
+      /* --- penyebaran "mulai dari nol" --- */
+      /* Setelan ditarik paling awal, sebelum satu baris pun dikirim. Alasannya
+         begini: kalau di komputer kamu menekan Mulai dari nol, riwayat di awan
+         ikut terhapus, tapi HP masih menyimpan riwayat lamanya. Tanpa langkah
+         ini, sinkronisasi pertama dari HP akan mengirim riwayat lama itu naik
+         dan datanya hidup kembali. Jadi tanda waktu reset dibaca dulu, dan
+         kalau alat ini belum pernah melihat reset itu, riwayat lokalnya
+         dibersihkan lebih dulu. */
+      const rr = await Supa.pilih('settings', 'select=data,updated_at');
+      const r0 = (rr || [])[0];
+      const rReset = r0 && r0.data && r0.data.reset_at;
+      let lReset = null; try { lReset = localStorage.getItem('arete_reset_at'); } catch (e) {}
+      if (rReset && lebihBaru(rReset, lReset)) {
+        if (D.bersihkanLokal) await D.bersihkanLokal();
+        /* Cap waktu setelan lokal ikut dilupakan, supaya sasaran dan tanggal
+           mulai yang baru dari awan yang dipakai, bukan yang lama di alat ini. */
+        try { localStorage.setItem('arete_reset_at', rReset); localStorage.removeItem('arete_setting_u'); } catch (e) {}
+        turun++;
+      }
 
       /* --- catatan harian --- */
       const lo = await lokalLogs();
@@ -100,8 +121,6 @@ window.Sync = (function () {
 
       /* --- pengaturan --- */
       const se = await lokalSetting();
-      const rr = await Supa.pilih('settings', 'select=data,updated_at');
-      const r0 = (rr || [])[0];
       if (!r0 || lebihBaru(se.updated_at, r0.updated_at)) {
         if (se.updated_at !== '1970-01-01T00:00:00Z' || !r0) {
           await Supa.tulis('settings', [{ user_id:uid, data:se.data, updated_at: se.updated_at === '1970-01-01T00:00:00Z' ? now() : se.updated_at }]);

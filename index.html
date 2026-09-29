@@ -131,6 +131,7 @@
         <h1 class="verdict" id="tr-title">Sesi hari ini</h1>
         <p class="sub" id="tr-sub"></p>
       </div>
+      <div id="tr-plan"></div>
       <div id="tr-why"></div>
       <div class="panelcard" id="c-ring" hidden></div>
       <div class="panelcard" id="tr-heat">
@@ -142,6 +143,7 @@
       <div class="panelcard" id="c-debt"></div>
       <div id="tr-slots"></div>
       <button class="btn" id="tr-save" type="button">Simpan sesi</button>
+      <button class="btn ghost sm" id="tr-cancel" type="button" hidden>Batal, kembali ke catatan</button>
       <div class="msg" id="tr-msg"></div>
     </div>
 
@@ -150,6 +152,7 @@
     </div>
 
     <div class="panel" data-panel="progres">
+      <div id="tr-prog"></div>
       <div id="tr-sum"></div>
       <div class="note"><p><b>Baca dua angka ini bersamaan, jangan salah satu.</b> Kamu sedang defisit menuju 67 kg. Dalam defisit, volume yang turun sambil estimasi 1RM bertahan itu bukan kemunduran, itu hasil yang dicari. Yang perlu dikhawatirkan cuma kalau keduanya turun bersamaan lebih dari dua minggu.</p></div>
     </div>
@@ -283,16 +286,21 @@
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>Hapus data</h2></div>
-      <p class="note-sm">Menghapus di sini permanen. Ekspor dulu kalau ragu.</p>
-      <div class="btnrow">
-        <button class="btn ghost sm" id="wipe-today" type="button">Hapus catatan hari ini</button>
-        <button class="btn ghost sm danger" id="wipe-all" type="button">Hapus semua data</button>
-      </div>
+      <div class="card-head"><h2>Mulai dari nol</h2></div>
+      <p class="note-sm">Menghapus seluruh catatan, sesi latihan, sesi coach, perut harian, dan foto, lalu menyetel hari ini sebagai hari pertama. Cadangan otomatis terunduh dulu. Yang tetap disimpan: sasaran, inventaris alat gym, dan gerakan buatanmu sendiri.</p>
+      <p class="note-sm">Kalau kamu sudah masuk akun, data di awan ikut terhapus dan alat keduamu ikut bersih otomatis waktu dia sinkron, jadi data lama tidak bisa hidup kembali.</p>
+      <button class="btn ghost sm danger" id="fresh-start" type="button">Mulai dari nol</button>
+      <div class="msg" id="nol-msg"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Hapus satu hari</h2></div>
+      <p class="note-sm">Membuang catatan hari yang sedang kamu lihat saja. Permanen, dan tidak menyentuh hari lain.</p>
+      <button class="btn ghost sm" id="wipe-today" type="button">Hapus catatan hari ini</button>
       <div class="msg" id="wipe-msg"></div>
     </div>
 
-    <p class="ver">Areté v21 · lokal + intervals.icu + Supabase</p>
+    <p class="ver">Areté v24 · lokal + intervals.icu + Supabase</p>
   </section>
 
   </main>

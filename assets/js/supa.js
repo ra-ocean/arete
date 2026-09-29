@@ -197,8 +197,16 @@ window.Supa = (function () {
   const pilih  = (tabel, query) => rest(tabel, { query:query });
   const tulis  = (tabel, rows)  => rest(tabel, { method:'POST', body:rows, upsert:true });
 
+  /* Hapus semua baris milik pengguna ini di satu tabel. RLS sudah memaksa
+     baris orang lain tidak ikut, tapi user_id tetap ditulis di query supaya
+     niatnya jelas dari sisi klien juga. */
+  async function hapusMilikku(tabel) {
+    if (!(await siap())) throw new Error('Belum masuk.');
+    return rest(tabel, { method:'DELETE', query:'user_id=eq.' + ses.user.id });
+  }
+
   tangkapTautan();
 
-  return { ada, masuk, user, kirimKode, verifikasi, masukSandi, daftar, keluar, siap, pilih, tulis, segarkan, ramah, setelan,
+  return { ada, masuk, user, hapusMilikku, kirimKode, verifikasi, masukSandi, daftar, keluar, siap, pilih, tulis, segarkan, ramah, setelan,
            tangkapTautan, ambilUser, url: () => URL };
 })();

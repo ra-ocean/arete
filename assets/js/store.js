@@ -108,7 +108,7 @@ window.DEFAULT_GOALS = {
   weight_target: 67,
   bf_estimate_current: 19,
   bf_target_pct: 14,
-  protein_target_g: 126,
+  protein_target_g: 145,   /* 2,1 g per kg berat badan. Dinaikkan dari 126 sesudah analisis nutrisi. */
   cal_target: 2200,
   tdee_low: 2500,
   tdee_high: 2800,

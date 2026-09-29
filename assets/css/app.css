@@ -1186,3 +1186,108 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .cek.bad{background:var(--accent-soft);color:var(--fg-2)}
 .cek b{color:var(--fg);font-weight:600}
 .cek code{font-size:11.5px}
+
+/* ===================== JADWAL, CATATAN, PROGRES (v23) ===================== */
+
+/* putusan hari */
+.planv{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);padding:14px 15px;margin:0 0 10px}
+.planv .pv-h{display:flex;align-items:center;gap:9px}
+.planv h2{font-size:15px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--fg);margin:0}
+.planv .pdot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--fg-3)}
+.planv.gym .pdot{background:var(--ok)}
+.planv.pulih .pdot{background:var(--warn)}
+.planv.selesai .pdot{background:var(--accent)}
+.planv p{margin:7px 0 0;font-size:12.5px;line-height:1.55;color:var(--fg-2)}
+.planv .pv-n{color:var(--fg);font-size:12.5px}
+.planv.gym{border-color:color-mix(in srgb,var(--ok) 34%,var(--rule))}
+.planv.pulih{border-color:color-mix(in srgb,var(--warn) 40%,var(--rule))}
+
+/* strip tujuh hari */
+.wkstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 0 6px}
+.wkstrip .wd{background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  padding:7px 0 8px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;
+  font-family:inherit;min-width:0}
+.wkstrip .wd .dn{font-size:9.5px;font-weight:600;letter-spacing:.04em;color:var(--fg-3);text-transform:uppercase}
+.wkstrip .wd.now{border-color:var(--rule-2)}
+.wkstrip .wd.sel{border-color:var(--accent);background:var(--accent-soft)}
+.wkstrip .wd.fut{opacity:.5}
+.mk{width:19px;height:19px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;font-style:normal}
+.mk.a{background:var(--accent);color:#fff}
+.mk.c{background:var(--fg);color:var(--bg)}
+.mk.o,.mk.e{background:var(--sunk);color:var(--fg-3);font-size:13px}
+.wkstrip .pr,.wklg i.pr{width:13px;height:3px;border-radius:2px;background:var(--rule);display:block}
+.wkstrip .pr.on,.wklg i.pr.on{background:var(--ok)}
+.wklg{display:flex;flex-wrap:wrap;gap:4px 13px;margin:0 0 14px;font-size:10.5px;color:var(--fg-3)}
+.wklg span{display:inline-flex;align-items:center;gap:5px}
+.wklg .mk{width:15px;height:15px;font-size:8.5px}
+
+/* catatan sesi selesai */
+.recw .recr{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;
+  padding:11px 0;border-top:1px solid var(--rule)}
+.recw .pc-head + .recr{border-top:0;padding-top:4px}
+.recw .rn{min-width:0}
+.recw .rn b{display:block;font-size:13.5px;font-weight:650;color:var(--fg)}
+.recw .rn small,.recw .rs small{display:block;font-size:10.5px;color:var(--fg-3);margin-top:2px;line-height:1.5}
+.recw .rs{text-align:right;flex:none;font-size:12px;font-weight:600;color:var(--fg-2);max-width:56%}
+
+/* kalender */
+.calnav{display:flex;align-items:center;gap:8px;font-size:12px}
+.calnav b{font-weight:650;color:var(--fg);min-width:96px;text-align:center}
+.calnav button{width:26px;height:26px;border-radius:50%;border:1px solid var(--rule);background:var(--bg);
+  color:var(--fg-2);font-family:inherit;font-size:14px;line-height:1;cursor:pointer}
+.calnav button:disabled{opacity:.35;cursor:default}
+.calh{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin:10px 0 4px}
+.calh span{text-align:center;font-size:9.5px;font-weight:600;color:var(--fg-3)}
+.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.calg .cd{aspect-ratio:1;border:1px solid transparent;border-radius:10px;background:var(--sunk);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-family:inherit;cursor:pointer;padding:0;min-width:0}
+.calg .cd.pad{background:none;cursor:default}
+.calg .cd .n{font-size:11px;font-weight:600;color:var(--fg-2);line-height:1}
+.calg .cd.has{background:var(--accent-soft)}
+.calg .cd.now{border-color:var(--rule-2)}
+.calg .cd.sel{border-color:var(--accent)}
+.calg .cd.fut{opacity:.4;cursor:default}
+.mks{display:flex;gap:3px;align-items:center;height:6px}
+.mks i,.wklg i.st,.wklg i.ab{display:block;border-radius:50%;width:6px;height:6px;background:transparent;
+  border:1px solid var(--rule-2)}
+.mks i.st.a,.wklg i.st.a{background:var(--accent);border-color:var(--accent)}
+.mks i.st.c,.wklg i.st.c{background:var(--fg);border-color:var(--fg)}
+.mks i.ab.on,.wklg i.ab.on{background:var(--ok);border-color:var(--ok);border-radius:2px;width:6px;height:3px}
+.wklg i.ab{border-radius:2px;width:7px;height:3px}
+
+/* grafik volume */
+.vchart{margin:16px 0 0}
+.vchart figcaption{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--fg-3);margin:0 0 6px}
+.vchart svg{width:100%;height:auto;display:block;overflow:visible}
+.vb{fill:var(--accent)}
+.vb.z{fill:var(--rule);opacity:.6}
+.vb.cur{fill:color-mix(in srgb,var(--accent) 72%,var(--fg))}
+.vax{stroke:var(--rule);stroke-width:1}
+.vx{fill:var(--fg-3);font-size:8.5px;text-anchor:middle;font-weight:600}
+.vv{fill:var(--fg);font-size:10px;text-anchor:middle;font-weight:700}
+.pchips.sm button{padding:4px 11px;font-size:11px}
+
+/* riwayat */
+.hrow{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;
+  padding:11px 0;border:0;border-top:1px solid var(--rule);background:none;font-family:inherit;
+  cursor:pointer;text-align:left}
+.hrow:first-of-type{border-top:0}
+.hrow .hd b{display:block;font-size:13px;font-weight:650;color:var(--fg)}
+.hrow .hd small,.hrow .hv small{display:block;font-size:10.5px;color:var(--fg-3);margin-top:2px}
+.hrow .hv{text-align:right;flex:none;font-size:12.5px;font-weight:650;color:var(--fg-2)}
+.mks i.kos{width:9px;height:2px;border-radius:2px;background:var(--rule-2);border:0;opacity:.7}
+
+/* skala RPE */
+.rpen{border:1px solid var(--rule);border-radius:14px;background:var(--surface);margin:0 0 14px;overflow:hidden}
+.rpen summary{cursor:pointer;padding:11px 14px;font-size:12px;font-weight:600;color:var(--fg-2);list-style:none}
+.rpen summary::-webkit-details-marker{display:none}
+.rpen summary::after{content:'+';float:right;color:var(--fg-3);font-weight:700}
+.rpen[open] summary::after{content:'\2212'}
+.rpen[open] summary{border-bottom:1px solid var(--rule);color:var(--fg)}
+.rpen p{margin:11px 14px;font-size:12px;line-height:1.6;color:var(--fg-2)}
+.rpel{list-style:none;margin:11px 14px;padding:0;display:grid;gap:7px}
+.rpel li{display:flex;gap:10px;align-items:flex-start;font-size:12px;line-height:1.5;color:var(--fg-2)}
+.rpel li b{flex:none;width:26px;height:22px;border-radius:7px;background:var(--accent-soft);color:var(--accent);
+  display:grid;place-items:center;font-size:11px;font-weight:700}

@@ -77,6 +77,14 @@
     $('#day-prev').disabled = sel <= launchDate();
     $('#day-next').disabled = isToday;
   }
+  /* Dipakai kalender dan riwayat di tab Latihan: pindah hari lalu gambar ulang. */
+  function goDay(k) {
+    if (!k || k < launchDate() || k > today) return;
+    sel = k; renderAll();
+    UI.subnav('train','sesi');
+    const el = $('.view[data-view="train"]'); if (el) el.scrollIntoView({ block:'start' });
+  }
+
   function stepDay(n) {
     const d = UI.parse(sel); d.setDate(d.getDate() + n);
     const k = keyOf(d);
@@ -1287,16 +1295,73 @@
       await Store.del('logs', sel); logs = logs.filter(l=>l.key!==sel); renderAll();
       flash('#wipe-msg','Catatan '+UI.fmt(sel)+' dihapus.');
     };
-    let armed=false, armT=null;
-    $('#wipe-all').onclick = async () => {
-      const b=$('#wipe-all');
-      if(!armed){ armed=true; b.classList.add('armed'); b.textContent='Ketuk lagi untuk hapus';
-        flash('#wipe-msg','Yakin? Semua catatan dan foto hilang permanen.',true);
-        clearTimeout(armT); armT=setTimeout(()=>{armed=false;b.classList.remove('armed');b.textContent='Hapus semua data';},6000); return; }
-      clearTimeout(armT); armed=false; b.classList.remove('armed'); b.textContent='Hapus semua data';
-      await Store.clear('logs'); await Store.clear('photos'); logs=[]; photos=[]; renderAll();
-      flash('#wipe-msg','Semua catatan dan foto dihapus.');
+
+
+    /* ---------- MULAI DARI NOL ----------
+       Bukan sekadar hapus. Urutannya yang penting, dan urutan yang salah itu
+       justru yang paling mungkin dilakukan orang sendiri: kalau kamu menghapus
+       data lokal sementara masih masuk ke Supabase, sinkronisasi berikutnya
+       menarik semuanya kembali dari awan dan terlihat seperti tombolnya gagal.
+       Jadi di sini awan dihapus dulu, baru lokal, baru tanggal mulai diset,
+       baru didorong naik lagi dengan tanda waktu reset supaya alat kedua ikut
+       bersih sebelum dia mengirim riwayat lamanya. */
+    async function mulaiDariNol() {
+      const msg = '#nol-msg';
+      /* Pesan akhir ditulis langsung, bukan lewat flash, karena flash
+         menghapus dirinya sesudah tiga detik dan keterangan sesudah reset
+         perlu tetap terbaca. */
+      const tetap = (t, bad) => { const el=$(msg); if(!el) return;
+        clearTimeout(flash['_'+msg]); el.textContent=t; el.classList.toggle('bad',!!bad); };
+      flash(msg,'Menyiapkan cadangan…');
+      /* Cadangan selalu diunduh lebih dulu, tanpa ditanya. Kalau besok kamu
+         menyesal, satu berkas ini satu satunya jalan kembali. */
+      try {
+        const blob = new Blob([JSON.stringify(await Store.export(),null,2)],{type:'application/json'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+        a.download='arete-sebelum-reset-'+today+'.json';
+        document.body.appendChild(a); a.click();
+        setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+      } catch(e) {}
+
+      const stamp = new Date().toISOString();
+      let awan = 'tidak tersambung';
+      if (window.Supa && Supa.ada() && Supa.masuk()) {
+        try {
+          flash(msg,'Menghapus data di awan…');
+          await Supa.hapusMilikku('logs');
+          await Supa.hapusMilikku('sessions');
+          awan = 'terhapus';
+        } catch(e) { awan = 'gagal: ' + e.message; }
+      }
+
+      flash(msg,'Menghapus data di alat ini…');
+      await bersihkanLokal();
+
+      goals.launch_date = today;
+      await Store.put('meta','goals', goals);
+      try { localStorage.setItem('arete_reset_at', stamp); } catch(e) {}
+      if (window.Sync) Sync.tandaiSetting();
+      await reloadLocal();
+
+      if (window.Supa && Supa.ada() && Supa.masuk() && awan === 'terhapus') {
+        try { await Sync.putar(true); } catch(e) {}
+        tetap('Selesai. Hari pertama: '+UI.fmt(today)+'. Data di awan juga bersih, dan alat keduamu ikut bersih otomatis waktu dia sinkron.');
+      } else if (awan.indexOf('gagal') === 0) {
+        tetap('Alat ini bersih, tapi awan '+awan+' Masuk lagi lalu ulangi, kalau tidak datanya bisa kembali.', true);
+      } else {
+        tetap('Selesai. Hari pertama: '+UI.fmt(today)+'. Kamu belum masuk Supabase, jadi kalau alat lain masih menyimpan data lama, data itu bisa naik dan kembali. Tekan tombol ini juga di alat itu.');
+      }
+    }
+    let nolArm=false, nolT=null;
+    $('#fresh-start').onclick = async () => {
+      const b=$('#fresh-start');
+      if(!nolArm){ nolArm=true; b.classList.add('armed'); b.textContent='Ketuk lagi untuk mulai dari nol';
+        flash('#nol-msg','Yakin? Seluruh catatan, sesi, dan foto hilang. Cadangan akan otomatis terunduh dulu.',true);
+        clearTimeout(nolT); nolT=setTimeout(()=>{nolArm=false;b.classList.remove('armed');b.textContent='Mulai dari nol';},6000); return; }
+      clearTimeout(nolT); nolArm=false; b.classList.remove('armed'); b.textContent='Mulai dari nol';
+      b.disabled=true; try { await mulaiDariNol(); } finally { b.disabled=false; }
     };
+
     const names={auto:'Tema: otomatis',day:'Tema: siang',night:'Tema: malam'};
     $('#theme-cycle').textContent = names[Theme.pref];
     $('#theme-cycle').onclick = () => {
@@ -1324,11 +1389,24 @@
     if (!targets) { targets = TARGETS.DEFAULTS.slice(); await Store.put('meta','targets',targets); }
     logs = (await Store.all('logs')).sort((a,b)=>a.key<b.key?-1:1);
     photos = await Store.all('photos');
-    if (window.TRAIN) await TRAIN.init({ Store, UI, $, $$, onChange: renderAll });
+    if (window.TRAIN) await TRAIN.init({ Store, UI, $, $$, onChange: renderAll, goDay });
     if (sel > today) sel = today;
     renderAll();
-    if (window.Sync) Sync.init({ Store, UI, $, $$, onData: reloadLocal });
+    if (window.Sync) Sync.init({ Store, UI, $, $$, onData: reloadLocal, bersihkanLokal });
   }
+  /* Membersihkan seluruh riwayat di alat ini. Dipakai dua tempat: tombol
+     Mulai dari nol, dan sinkronisasi di alat kedua waktu dia baru tahu ada
+     reset. Setelan sengaja tidak ikut: inventaris alat gym, gerakan buatan
+     sendiri, sasaran, dan fotomu sebagai profil bukan catatan harian. */
+  async function bersihkanLokal() {
+    await Store.clear('logs');
+    await Store.clear('photos');
+    await Store.clear('cache');
+    if (window.TRAIN) await TRAIN.resetRiwayat();
+    logs = []; photos = []; wellness = null; activities = null;
+    sel = today;
+  }
+
   /* Dipanggil sinkronisasi sesudah ada baris yang turun dari awan. */
   async function reloadLocal() {
     const g = await Store.get('meta','goals');   if (g) goals = Object.assign({}, window.DEFAULT_GOALS, g);

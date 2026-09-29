@@ -262,6 +262,11 @@ window.TRAIN = (function () {
      yang tetap terhubung ke model. */
   let st = { sessions:[], coach:[], gear:{}, mine:{}, abs:{} };
   let swap = {}, edit = null, cq = '', cfilt = 'Semua', copen = false, draft = null;
+  /* Angka yang sedang diketik tapi belum disimpan. Dulu tidak ada, dan itu
+     sebabnya mengganti satu gerakan menghapus isian gerakan lain: kartu
+     digambar ulang dari catatan tersimpan, sementara yang diketik cuma hidup
+     di dalam DOM. Sekarang isian dipungut dulu sebelum digambar ulang. */
+  let live = {}, lastSel = null, editSaved = false, extra = [], calOff = 0, volMode = 'kg', force = {};
   let D = {};                          /* dependensi dari app.js */
 
   const CAT = () => Object.assign({}, EX, st.mine);
@@ -317,6 +322,17 @@ window.TRAIN = (function () {
     st.sessions.sort((a, b) => a.key < b.key ? -1 : 1);
     await persist();
   }
+  /* Mulai dari nol. Riwayat dibuang, tapi inventaris alat gym dan gerakan
+     buatan sendiri tidak: itu dua duanya setelan, bukan catatan. Membuang
+     inventaris berarti menyusun ulang alat yang memang ada di gymnya, dan
+     membuang gerakan buatan sendiri berarti mengetik ulang gerakan coach
+     yang tidak ada di pustaka. Tidak ada gunanya. */
+  async function resetRiwayat() {
+    st.sessions = []; st.coach = []; st.abs = {};
+    draft = null; swap = {}; edit = null;
+    await persist();
+  }
+
   const exportSettings = () => ({ gear:st.gear, mine:st.mine });
   async function importSettings(d) {
     if (d && d.gear) st.gear = d.gear;
@@ -537,7 +553,12 @@ window.TRAIN = (function () {
         if (!done.length) return;
         const w = Math.max.apply(null, done.map(x => +x.w || 0));
         const r = Math.max.apply(null, done.map(x => +x.r || 0));
-        out.push({ key:s.key, w:w, r:r, sets:done.length });
+        /* RPE yang dipakai adalah set kerja paling berat, bukan rata rata,
+           karena set pemanasan akan menarik rata ratanya ke bawah dan
+           membuat sesi berat terbaca ringan. */
+        const rp = done.map(rpeOf).filter(v => v != null);
+        out.push({ key:s.key, w:w, r:r, sets:done.length,
+                   rpe: rp.length ? Math.max.apply(null, rp) : null });
       });
     });
     return out;
@@ -545,22 +566,60 @@ window.TRAIN = (function () {
   const e1rm = (w, r) => +(w * (1 + r / 30)).toFixed(1);
   const volOf = h => (h.w || 1) * h.r * h.sets;
 
+  /* Saran kenaikan. RPE ikut dibaca di sini, dan itu bagian pentingnya:
+     sebelum ini kolom usaha memang ada di tabel tapi tidak pernah dipakai
+     hitungan apa pun, jadi mengisinya sia sia. Sekarang RPE yang menentukan
+     apakah beban naik, ditahan, atau justru diturunkan. */
   function rx(id) {
     const H = hist(id);
-    if (H.length < 3) return { ok:0, t:`Butuh tiga sesi tercatat sebelum Areté bisa menyarankan kenaikan. Sekarang ${H.length}.` };
-    const L = H[H.length - 1], P = H[H.length - 2], Q = H[H.length - 3];
+    if (H.length < 2) return { ok:0, t:`Butuh dua sesi tercatat sebelum Areté bisa menyarankan kenaikan. Sekarang ${H.length}.` };
+    const L = H[H.length - 1], P = H[H.length - 2], Q = H[H.length - 3] || P;
+    const e = L.rpe;
+    const langkah = w => w >= 60 ? 2.5 : w >= 20 ? 2 : 1;
+    const penuh = L.r >= Math.max(P.r, Q.r);
     const sameW = L.w === P.w && P.w === Q.w;
-    const target = Math.max(L.r, P.r, Q.r);
-    if (sameW && L.r >= target && L.w > 0) {
-      const step = L.w >= 60 ? 2.5 : L.w >= 20 ? 2 : 1;
-      return { ok:1, t:`Sudah tiga sesi di <b>${L.w} kg</b> dan repsnya penuh. Naikkan ke <b>${L.w + step} kg</b> hari ini.` };
+    const n = v => String(Math.round(v * 10) / 10).replace('.', ',');
+
+    if (e != null && e >= 9.5 && L.r < P.r)
+      return { ok:0, t:`Sesi lalu <b>RPE ${n(e)}</b> dan repsnya turun dari ${P.r} ke ${L.r}. Itu tanda bebannya terlalu berat, bukan tanda kamu kurang berusaha. Turunkan sekitar lima persen dan kejar repsnya dulu.` };
+    if (e != null && e >= 9.5)
+      return { ok:0, t:`Sesi lalu <b>RPE ${n(e)}</b>, hampir tidak ada sisa. Ulangi beban yang sama dan targetkan RPE 8. Set yang selalu habis total menumpuk kelelahan lebih cepat daripada kekuatannya naik.` };
+
+    if (penuh && e != null && e <= 7 && L.w > 0) {
+      const k = langkah(L.w) * (e <= 6 ? 2 : 1);
+      return { ok:1, t:`Reps penuh dan <b>RPE cuma ${n(e)}</b>, jadi masih banyak sisa. Naikkan ke <b>${n(L.w + k)} kg</b> hari ini.` };
     }
-    if (sameW && L.w === 0 && L.r >= target) {
+    if (penuh && e != null && e <= 7 && L.w === 0)
+      return { ok:1, t:`Reps penuh dan <b>RPE cuma ${n(e)}</b>. Tambahkan beban luar, atau naikkan ke <b>${L.r + 3} reps</b>.` };
+
+    if (sameW && penuh && L.w > 0)
+      return { ok:1, t:`Sudah tiga sesi di <b>${n(L.w)} kg</b> dengan reps penuh${e != null ? ` dan RPE ${n(e)}` : ''}. Naikkan ke <b>${n(L.w + langkah(L.w))} kg</b> hari ini.` };
+    if (sameW && penuh && L.w === 0)
       return { ok:1, t:`Tiga sesi di reps yang sama tanpa beban. Tambah beban, atau naikkan ke <b>${L.r + 2} reps</b>.` };
-    }
-    if (L.r < P.r) return { ok:0, t:`Reps turun dari ${P.r} ke ${L.r} di beban yang sama. Tahan beban dulu, kejar repsnya.` };
-    if (L.w > P.w) return { ok:1, t:`Baru naik ke <b>${L.w} kg</b> sesi lalu. Tahan di sini sampai repsnya penuh tiga sesi.` };
-    return { ok:0, t:`Belum cukup pola untuk menyarankan kenaikan. Jalankan seperti sesi lalu.` };
+
+    if (L.r < P.r)
+      return { ok:0, t:`Reps turun dari ${P.r} ke ${L.r}${L.w === P.w ? ' di beban yang sama' : ''}. Tahan beban dulu, kejar repsnya.` };
+    if (L.w > P.w)
+      return { ok:0, t:`Baru naik ke <b>${n(L.w)} kg</b> sesi lalu${e != null ? `, RPE ${n(e)}` : ''}. Tahan di sini sampai repsnya penuh${e != null && e >= 9 ? ' dan RPE-nya turun ke 8' : ''}.` };
+    return { ok:0, t:`Belum cukup pola untuk menyarankan kenaikan. Jalankan seperti sesi lalu${e != null ? ` dan incar RPE 8` : ''}.` };
+  }
+
+  /* Skala usaha, ditulis pakai rasa badan dan bukan pakai hitungan sisa reps.
+     Alasannya praktis: pada set 30 reps atau plank 45 detik, menebak berapa
+     reps yang masih tersisa itu mustahil, jadi angkanya jadi karangan. */
+  function rpeNote() {
+    const R = [
+      ['6', 'Ringan. Napas masih teratur, masih banyak sisa.'],
+      ['7', 'Mulai berat, tapi gerakannya masih rapi dan ritmenya tetap.'],
+      ['8', 'Berat. Ritmenya melambat di reps terakhir. Ini sasaran biasa.'],
+      ['9', 'Sangat berat. Tekniknya mulai goyah kalau dipaksa satu lagi.'],
+      ['10', 'Tidak ada yang tersisa. Setnya berhenti sendiri.']
+    ];
+    return `<details class="rpen"><summary>Apa itu RPE, dan angka berapa yang diisi</summary>
+      <p>RPE mengukur <b>seberapa berat set itu terasa</b>, dari 1 sampai 10. Bukan berapa reps yang masih tersisa, karena pada set panjang dan gerakan tahan, sisa reps tidak bisa ditebak.</p>
+      <ul class="rpel">${R.map(([k, v]) => `<li><b>${k}</b><span>${v}</span></li>`).join('')}</ul>
+      <p>Isi angka bulat saja. Untuk gerakan berat reps rendah, RPE 8 kira kira sama dengan menyisakan dua reps, jadi dua cara pikir itu bertemu di sana. Areté memakai angka ini untuk memutuskan bebanmu naik, ditahan, atau diturunkan.</p>
+    </details>`;
   }
 
   /* ============================================================
@@ -617,6 +676,97 @@ window.TRAIN = (function () {
   }
 
   /* ============================================================
+     JADWAL
+     Areté tidak pernah punya jadwal, dan itu lubang nyata: sesi kekuatan
+     disusun ulang setiap hari, jadi setiap hari terlihat seperti hari latihan.
+     Untuk pelari dengan Achilles sensitif dan bayi baru lahir, tiga sesi
+     kekuatan per tujuh hari sudah batas atas yang sehat, dan sesi coach ikut
+     dihitung karena tendon tidak peduli siapa yang menulis programnya.
+     ============================================================ */
+  const KUOTA = 3;                       /* sesi kekuatan per tujuh hari */
+  const shift = (k, n) => {
+    const d = new Date(k + 'T00:00:00'); d.setDate(d.getDate() + n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+         + '-' + String(d.getDate()).padStart(2, '0');
+  };
+  const beratnya = items => (items || []).some(x => (x.tier || tierOf(x.id)) === 'berat');
+
+  /* Satu peta hari: apa saja yang tercatat di tanggal itu. */
+  function dayMap() {
+    const out = {};
+    const touch = k => out[k] || (out[k] = { key:k, arete:false, coach:false, abs:false, berat:false });
+    st.sessions.forEach(s => { if (!(s.items || []).length) return;
+      const o = touch(s.key); o.arete = true; if (beratnya(s.items)) o.berat = true; });
+    st.coach.forEach(c => { if (!(c.items || []).length) return;
+      const o = touch(c.key); o.coach = true; if (beratnya(c.items)) o.berat = true; });
+    Object.keys(st.abs).forEach(k => { if (!(st.abs[k].items || []).length) return; touch(k).abs = true; });
+    return out;
+  }
+
+  function plan(key) {
+    const dm = dayMap();
+    const gym = Object.keys(dm).filter(k => dm[k].arete || dm[k].coach).sort();
+    if (dm[key] && (dm[key].arete || dm[key].coach))
+      return { s:'selesai', t:'Sudah latihan hari ini',
+               why:'Catatannya ada di bawah. Besok Areté menyusun sesi baru dari utang pola yang tersisa.' };
+
+    const sebelum = gym.filter(k => k < key);
+    const last = sebelum[sebelum.length - 1] || null;
+    const jendela = sebelum.filter(k => ago(k, key) <= 6);
+
+    if (last && ago(last, key) === 1 && dm[last].berat)
+      return { s:'pulih', t:'Hari pemulihan',
+        why:`Kemarin ada angkatan berat. Satu hari jeda sesudah beban berat itu bukan kemalasan, itu bagian dari programnya: otot dan tendon menambah kekuatan saat pulih, bukan saat diangkat.`,
+        next: key, nextT:'besok' };
+
+    if (jendela.length >= KUOTA) {
+      const tiga = jendela.slice(-KUOTA);
+      const nk = shift(tiga[0], 7);
+      return { s:'pulih', t:'Kuota minggu ini sudah penuh',
+        why:`Sudah ${jendela.length} sesi kekuatan dalam tujuh hari terakhir, termasuk sesi coach. Batasnya ${KUOTA}, karena kerja kekuatanmu menumpuk di atas beban lari, bukan berdiri sendiri.`,
+        next: nk, nextT: D.UI.fmt(nk) };
+    }
+    const sisa = KUOTA - jendela.length;
+    return { s:'gym', t:'Hari sesi kekuatan',
+      why:`Sisa kuota ${sisa} sesi lagi dalam tujuh hari ke depan${last ? `. Sesi terakhir ${ago(last, key)} hari lalu` : ''}.` };
+  }
+
+  /* Strip Senin sampai Minggu untuk minggu yang memuat tanggal terpilih. */
+  function weekStrip(key) {
+    const dm = dayMap(), t = D.UI.todayKey();
+    const d = new Date(key + 'T00:00:00');
+    const mon = shift(key, -((d.getDay() + 6) % 7));
+    const nm = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+    let gym = 0;
+    const iniMinggu = mon === shift(t, -((new Date(t + 'T00:00:00').getDay() + 6) % 7));
+    const cells = nm.map((n, i) => {
+      const k = shift(mon, i), o = dm[k] || {};
+      if (o.arete || o.coach) gym++;
+      const depan = k > t;
+      const cls = ['wd', k === key ? 'sel' : '', k === t ? 'now' : '', depan ? 'fut' : ''].filter(Boolean).join(' ');
+      const mark = o.coach ? '<b class="mk c">C</b>' : o.arete ? '<b class="mk a">A</b>'
+        : depan ? '<b class="mk e">&middot;</b>' : '<b class="mk o">&middot;</b>';
+      return `<button class="${cls}" data-jump="${k}" type="button">
+        <span class="dn">${n}</span>${mark}
+        <span class="pr ${o.abs ? 'on' : ''}" aria-hidden="true"></span></button>`;
+    }).join('');
+    return `<div class="wkstrip">${cells}</div>
+      <p class="wklg"><span><b class="mk a">A</b> sesi Areté</span><span><b class="mk c">C</b> sesi coach</span>
+        <span><i class="pr on"></i> perut harian</span><span>${gym} dari ${KUOTA} sesi kekuatan ${iniMinggu ? 'minggu ini' : 'di minggu itu'}</span></p>`;
+  }
+
+  function planCard(key) {
+    const p = plan(key);
+    return `<div class="planv ${p.s}">
+        <div class="pv-h"><span class="pdot"></span><h2>${p.t}</h2></div>
+        <p>${p.why}</p>
+        ${p.next ? `<p class="pv-n">Sesi kekuatan berikutnya: <b>${p.nextT}</b>.</p>` : ''}
+      </div>
+      ${weekStrip(key)}
+      ${rpeNote()}`;
+  }
+
+  /* ============================================================
      PENYIMPANAN SESI
      ============================================================ */
   function sessionOf(key) { return st.sessions.find(s => s.key === key) || null; }
@@ -654,15 +804,53 @@ window.TRAIN = (function () {
      TAMPILAN
      ============================================================ */
   const HEAD = {
-    load:'<th>Beban<i>kg</i></th><th>Reps<i>&nbsp;</i></th><th>RIR<i>&nbsp;</i></th>',
-    time:'<th colspan="2">Durasi<i>detik</i></th><th>RIR<i>&nbsp;</i></th>',
-    cont:'<th colspan="2">Kontak<i>per kaki</i></th><th>RIR<i>&nbsp;</i></th>',
-    box: '<th>Kontak<i>&nbsp;</i></th><th>Tinggi<i>cm</i></th><th>RIR<i>&nbsp;</i></th>',
-    dist:'<th>Jarak<i>meter</i></th><th>Beban<i>kg</i></th><th>RIR<i>&nbsp;</i></th>'
+    load:'<th>Beban<i>kg</i></th><th>Reps<i>&nbsp;</i></th><th>RPE<i>1&ndash;10</i></th>',
+    time:'<th colspan="2">Durasi<i>detik</i></th><th>RPE<i>1&ndash;10</i></th>',
+    cont:'<th colspan="2">Kontak<i>per kaki</i></th><th>RPE<i>1&ndash;10</i></th>',
+    box: '<th>Kontak<i>&nbsp;</i></th><th>Tinggi<i>cm</i></th><th>RPE<i>1&ndash;10</i></th>',
+    dist:'<th>Jarak<i>meter</i></th><th>Beban<i>kg</i></th><th>RPE<i>1&ndash;10</i></th>'
   };
   const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 
   let sel = null, mus = null, cur = null, heatMounted = false;
+
+  /* Pungut semua angka yang ada di layar, dicentang atau belum, sebelum
+     kartunya digambar ulang. Ini jaring penyelamat untuk satu keluhan nyata:
+     mengganti gerakan ketiga menghapus isian gerakan kesatu sampai keenam. */
+  function snap() {
+    D.$$('#tr-slots tr[data-ex], #abs-slots tr[data-ex]').forEach(tr => {
+      const id = tr.dataset.ex, i = +tr.dataset.i;
+      if (!id || isNaN(i)) return;
+      const arr = live[id] || (live[id] = []);
+      const o = arr[i] || (arr[i] = {});
+      tr.querySelectorAll('input[data-f]').forEach(inp => {
+        o[inp.dataset.f] = inp.value === '' ? null : +inp.value;
+      });
+      const tk = tr.querySelector('.tick');
+      o.done = !!(tk && tk.getAttribute('aria-pressed') === 'true');
+    });
+  }
+  /* Catatan tersimpan sebagai dasar, isian yang sedang diketik menimpanya. */
+  /* Catatan lama menyimpan RIR. RPE dan RIR mengukur hal yang sama dari dua
+     arah pada set berat, jadi angka lama tidak perlu dibuang: RPE = 10 - RIR.
+     Kalau dibuang, riwayat yang sudah ada kehilangan konteksnya tanpa alasan. */
+  const rpeOf = x => {
+    if (x == null) return null;
+    if (x.rpe != null) return +x.rpe;
+    if (x.rir != null) return Math.max(1, Math.min(10, 10 - (+x.rir)));
+    return null;
+  };
+  function mergedSets(id, rec) {
+    const it = rec ? (rec.items || []).find(x => x.id === id) : null;
+    const base = (it && it.sets) ? it.sets.map(x => {
+      const o = Object.assign({}, x);
+      if (o.rpe == null && o.rir != null) o.rpe = rpeOf(x);
+      return o;
+    }) : [];
+    const l = live[id];
+    if (l) l.forEach((o, i) => { if (o) base[i] = Object.assign({}, base[i] || {}, o); });
+    return base;
+  }
 
   function setRow(id, ex, d, i, saved) {
     const warm = d[2] === 'W';
@@ -682,7 +870,7 @@ window.TRAIN = (function () {
     else if (ex.kind === 'box') cells = `<td class="wcell">${num('r', d[0], 'Jumlah kontak')}</td><td class="rcell">${num('w', d[1], 'Tinggi boks dalam sentimeter')}</td>`;
     else cells = `<td class="wcell">${num('r', d[0], 'Jarak dalam meter')}</td><td class="rcell">${num('w', d[1], 'Beban dalam kilogram', 1)}</td>`;
     return `<tr class="sets-in${sv.done ? ' done' : ''}" data-ex="${id}" data-i="${i - 1}"><td>${idx}</td><td class="prev">${prev}</td>${cells}
-      <td class="icell">${num('rir', 2, 'RIR')}</td>
+      <td class="icell">${num('rpe', 8, 'RPE, seberapa berat set ini dari satu sampai sepuluh')}</td>
       <td class="r"><button class="tick" data-tick aria-pressed="${!!sv.done}" aria-label="Tandai set selesai" type="button">&#10003;</button></td></tr>`;
   }
 
@@ -720,7 +908,7 @@ window.TRAIN = (function () {
           <div class="d ${cls(dvol)}">${arr(dvol)}${Math.abs(dvol)}</div></div>
       </div>
       <ul class="plast">${H.slice(-3).reverse().map(h =>
-        `<li><span>${D.UI.shortDate(h.key).dm}</span><span>${h.w > 0 ? h.w + ' kg x ' + h.r + ' x ' + h.sets : h.r + ' x ' + h.sets}</span></li>`).join('')}</ul>
+        `<li><span>${D.UI.shortDate(h.key).dm}</span><span>${h.w > 0 ? String(h.w).replace('.', ',') + ' kg x ' + h.r + ' x ' + h.sets : h.r + ' x ' + h.sets}${h.rpe != null ? ' &middot; RPE ' + String(h.rpe).replace('.', ',') : ''}</span></li>`).join('')}</ul>
       ${rxBox(id)}`;
   }
   function rxBox(id) {
@@ -743,11 +931,11 @@ window.TRAIN = (function () {
     }).join('')}</ul>`;
   }
 
-  function exCard(baseId, saved) {
+  function exCard(baseId, rec) {
     const id = swap[baseId] || baseId, e = byId(id);
     if (!e) return '';
     const mati = !gearOk(id);
-    const sv = (saved && saved.sets) || null;
+    const sv = mergedSets(id, rec);
     return `<div class="ex${mati ? ' off' : ''}">
       <div class="ex-h">
         <h3>${esc(e.n)}${swap[baseId] ? '<span class="swapped">diganti</span>' : ''}</h3>
@@ -760,7 +948,7 @@ window.TRAIN = (function () {
       </div>
       ${mati ? `<div class="tskip"><b>${esc(e.g)} ditandai tidak tersedia.</b> Tekan <b>Ganti</b> untuk memilih pengganti dengan pola gerak yang sama.</div>` : `
       <table class="sets"><thead><tr><th></th><th>Terakhir</th>${HEAD[e.kind]}<th class="r"></th></tr></thead>
-        <tbody>${e.def.map((d, i) => setRow(id, e, d, i + 1, sv ? sv[i] : null)).join('')}</tbody></table>`}
+        <tbody>${e.def.map((d, i) => setRow(id, e, d, i + 1, sv[i] || null)).join('')}</tbody></table>`}
       ${e.note ? `<div class="tskip" style="margin-top:9px">${e.note}</div>` : ''}
       <div id="tp-p-${baseId}" hidden style="margin-top:11px">${progOf(id)}</div>
       <div id="tp-c-${baseId}" hidden style="margin-top:4px">
@@ -769,6 +957,44 @@ window.TRAIN = (function () {
         <div class="demo"><a href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.n + ' proper form')}" target="_blank" rel="noopener">Tonton video</a></div>
       </div>
       <div id="tp-a-${baseId}" hidden style="margin-top:6px">${altOf(baseId)}</div>
+    </div>`;
+  }
+
+  /* ---------- catatan sesi yang sudah selesai ---------- */
+  const fmtn = v => String(Math.round((+v || 0) * 10) / 10).replace('.', ',');
+  function setsText(e, it) {
+    return (it.sets || []).map(x => {
+      if (e.kind === 'time') return `${x.r} d`;
+      if (e.kind === 'cont') return `${x.r} kontak`;
+      if (e.kind === 'box')  return `${x.r} kontak di ${fmtn(x.w)} cm`;
+      if (e.kind === 'dist') return `${x.r} m${+x.w ? ' beban ' + fmtn(x.w) + ' kg' : ''}`;
+      return `${+x.w ? fmtn(x.w) + ' kg' : 'berat badan'} x ${x.r}`;
+    }).join('  &middot;  ');
+  }
+  /* Kenapa ini ada. Sebelumnya, sesudah Simpan sesi, Areté menyusun ulang
+     sesi hari itu dari utang pola yang baru saja berubah, jadi gerakan yang
+     tadi dikerjakan lenyap dari layar dan digantikan gerakan lain. Dari sisi
+     pemakai itu terlihat seperti catatannya hilang. Sekarang hari yang sudah
+     tersimpan berhenti menyusun apa pun dan menampilkan catatan aslinya. */
+  function recCard(rec) {
+    const its = (rec.items || []);
+    const rows = its.map(it => {
+      const e = byId(it.id) || { n:it.id, p:'', pat:'', kind:'load' };
+      const kg = (it.sets || []).reduce((a, x) => a + (e.kind === 'load' ? (+x.w || 0) * (+x.r || 0) : 0), 0);
+      return `<div class="recr">
+        <div class="rn"><b>${esc(e.n)}</b><small>${esc(String(e.p || '').split(',')[0])}${e.pat ? ' &middot; pola ' + e.pat : ''}</small></div>
+        <div class="rs">${(it.sets || []).length} set${kg > 0 ? ' &middot; ' + Math.round(kg).toLocaleString('id-ID') + ' kg' : ''}
+          <small>${setsText(e, it)}</small></div>
+      </div>`;
+    }).join('');
+    return `<div class="panelcard recw">
+      <div class="pc-head"><h2>Yang kamu kerjakan</h2></div>
+      ${rows || '<p class="tm">Catatannya kosong.</p>'}
+      <div class="btnrow" style="margin-top:14px">
+        <button class="btn ghost sm" data-red="edit" type="button">Ubah catatan ini</button>
+        <button class="btn ghost sm" data-red="add" type="button">Tambah gerakan</button>
+      </div>
+      <p class="dnote">Sesi hari ini berhenti disusun ulang begitu kamu menyimpan. Sesi baru muncul sendiri besok, dan kalau besok hari pemulihan, kartu di atas yang memberi tahu.</p>
     </div>`;
   }
 
@@ -912,13 +1138,13 @@ window.TRAIN = (function () {
         <button data-am="home" aria-pressed="${a.mode === 'home'}" type="button">Di rumah</button>
         <button data-am="gym" aria-pressed="${a.mode === 'gym'}" type="button">Di gym</button>
       </div>
+      ${rpeNote()}
       <div id="abs-slots">${ids.map((id, k) => {
         const reg = ABSREG[k] || ABSREG[0];
-        const saved = (a.items || []).find(x => x.id === (swap[id] || id));
         return `<div class="slot">
           <div class="slot-h"><span class="n">${k + 1}</span><h2>${reg[1]}</h2></div>
           <p class="tm" style="margin:-4px 0 8px 2px">${reg[2]}</p>
-          ${exCard(id, saved)}
+          ${exCard(id, { items: a.items || [] })}
         </div>`;
       }).join('')}</div>
       <button class="btn" id="abs-save" type="button">Simpan sesi harian</button>
@@ -1021,6 +1247,183 @@ window.TRAIN = (function () {
       <p class="dnote">Yang dihitung cuma beban luar. Gerakan berat badan tidak ikut, karena porsi badan yang benar benar terangkat beda beda tiap gerakan dan menebaknya cuma membuat angkanya terlihat besar tanpa dasar.</p>`;
   }
 
+  /* ============================================================
+     PROGRES
+     Tiga pertanyaan yang benar benar ditanyakan: hari mana aku bolong,
+     berapa yang kuangkat minggu ini, dan apa isi sesi minggu lalu.
+     ============================================================ */
+  function volOfDay(k) {
+    let kg = 0, sets = 0, ger = 0;
+    const tambah = its => (its || []).forEach(it => {
+      const e = byId(it.id) || {};
+      ger++;
+      if (it.sets && it.sets.length) {
+        it.sets.forEach(x => { sets++; if (e.kind === 'load') kg += (+x.w || 0) * (+x.r || 0); });
+      } else {
+        const n = it.setsN || 3; sets += n;
+        if (e.kind === 'load') kg += (+it.w || 0) * (+it.r || 0) * n;
+      }
+    });
+    const s2 = st.sessions.find(x => x.key === k); if (s2) tambah(s2.items);
+    st.coach.filter(c => c.key === k).forEach(c => tambah(c.items));
+    if (st.abs[k]) tambah(st.abs[k].items);
+    return { kg:kg, sets:sets, ger:ger };
+  }
+  const monOf = k => shift(k, -((new Date(k + 'T00:00:00').getDay() + 6) % 7));
+  function volOfWeek(mon) {
+    let kg = 0, sets = 0, gym = 0, perut = 0;
+    const dm = dayMap();
+    for (let i = 0; i < 7; i++) {
+      const k = shift(mon, i), v = volOfDay(k), o = dm[k] || {};
+      kg += v.kg; sets += v.sets;
+      if (o.arete || o.coach) gym++;
+      if (o.abs) perut++;
+    }
+    return { mon:mon, kg:kg, sets:sets, gym:gym, perut:perut };
+  }
+
+  /* Satu deret, satu sumbu. Ujung batang dibulatkan 4 px dan menempel di
+     garis dasar, jaraknya 2 px, dan cuma batang terakhir yang diberi angka
+     supaya yang dibaca duluan memang yang terbaru. */
+  function bars(data, unit, lab, kosong) {
+    const W = 320, H = 108, B = 22, T = 14;
+    const total = data.reduce((a, d) => a + d.v, 0);
+    /* Grafik yang seluruh batangnya nol bukan grafik, itu cuma sumbu kosong
+       yang terlihat seperti aplikasinya rusak. Lebih jujur ditulis kalimat. */
+    if (total <= 0) return `<figure class="vchart"><figcaption>${lab}</figcaption>
+      <p class="tm">${kosong || 'Belum ada yang tercatat di rentang ini.'}</p></figure>`;
+    const mx = Math.max.apply(null, data.map(d => d.v).concat([1]));
+    const n = data.length, gap = 2, bw = (W / n) - gap;
+    const fm = v => unit === 'kg'
+      ? (v >= 10000 ? (Math.round(v / 100) / 10).toFixed(1).replace('.', ',') + ' rb'
+                    : Math.round(v).toLocaleString('id-ID'))
+      : Math.round(v) + '';
+    let g = '';
+    data.forEach((d, i) => {
+      const h = mx > 0 ? (d.v / mx) * (H - B - T) : 0;
+      const x = i * (bw + gap), y = H - B - h;
+      g += `<rect class="vb${d.v <= 0 ? ' z' : ''}${(i === n - 1 && d.v > 0) ? ' cur' : ''}" x="${x.toFixed(1)}" y="${(h < 3 ? H - B - 3 : y).toFixed(1)}"
+        width="${bw.toFixed(1)}" height="${Math.max(3, h).toFixed(1)}" rx="4"><title>${d.t}: ${fm(d.v)} ${unit}</title></rect>`;
+      g += `<text class="vx" x="${(x + bw / 2).toFixed(1)}" y="${H - 7}">${d.x}</text>`;
+    });
+    /* Label langsung dipasang selektif, bukan di tiap batang: yang terbaru,
+       dan yang tertinggi kalau bukan yang terbaru. Angka di semua batang
+       membuat grafiknya jadi tabel yang sulit dibaca. */
+    const iMax = data.reduce((a, d, i) => d.v > data[a].v ? i : a, 0);
+    [n - 1, iMax].filter((i, k, arr) => arr.indexOf(i) === k)
+      .forEach(i => { const d = data[i]; if (!d || d.v <= 0) return;
+        const h = (d.v / mx) * (H - B - T), x = i * (bw + gap) + bw / 2;
+        g += `<text class="vv" x="${Math.max(16, Math.min(W - 16, x)).toFixed(1)}" y="${(H - B - h - 4).toFixed(1)}">${fm(d.v)}</text>`;
+      });
+    return `<figure class="vchart"><figcaption>${lab}</figcaption>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${lab}">
+        <line class="vax" x1="0" y1="${H - B}" x2="${W}" y2="${H - B}"/>${g}</svg></figure>`;
+  }
+
+  function calCard() {
+    const t = D.UI.todayKey();
+    const b = new Date(t + 'T00:00:00'); b.setDate(1); b.setMonth(b.getMonth() + calOff);
+    const y = b.getFullYear(), m = b.getMonth();
+    const M = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const p2 = n => String(n).padStart(2, '0');
+    const akhir = new Date(y, m + 1, 0).getDate();
+    const lead = (new Date(y, m, 1).getDay() + 6) % 7;
+    const dm = dayMap();
+    let sel2 = '';
+    for (let i = 0; i < lead; i++) sel2 += '<span class="cd pad"></span>';
+    let gym = 0, perut = 0;
+    for (let d = 1; d <= akhir; d++) {
+      const k = `${y}-${p2(m + 1)}-${p2(d)}`, o = dm[k] || {}, depan = k > t;
+      if (o.arete || o.coach) gym++;
+      if (o.abs) perut++;
+      const cls = ['cd', k === t ? 'now' : '', k === sel ? 'sel' : '', depan ? 'fut' : '',
+        (o.arete || o.coach) ? 'has' : ''].filter(Boolean).join(' ');
+      /* Hari kosong cukup satu garis redup. Dua cincin kosong di tiap tanggal
+         membuat seluruh bulan terlihat sama sibuk padahal isinya tidak ada. */
+      const ada = o.arete || o.coach || o.abs;
+      const mks = depan ? '' : !ada ? '<i class="kos"></i>'
+        : `${o.coach ? '<i class="st c"></i>' : ''}${o.arete ? '<i class="st a"></i>' : ''}${o.abs ? '<i class="ab on"></i>' : ''}`;
+      sel2 += `<button class="${cls}" data-jump="${k}" type="button" aria-label="${D.UI.fmt(k)}">
+        <span class="n">${d}</span><span class="mks">${mks}</span>
+      </button>`;
+    }
+    return `<div class="panelcard">
+      <div class="pc-head"><h2>Kalender</h2>
+        <div class="calnav"><button data-cal="-1" type="button" aria-label="Bulan sebelumnya">&#8249;</button>
+          <b>${M[m]} ${y}</b>
+          <button data-cal="1" type="button" aria-label="Bulan berikutnya"${calOff >= 0 ? ' disabled' : ''}>&#8250;</button></div>
+      </div>
+      <div class="calh">${['S','S','R','K','J','S','M'].map(x => `<span>${x}</span>`).join('')}</div>
+      <div class="calg">${sel2}</div>
+      <p class="wklg"><span><i class="st a"></i> sesi Areté</span><span><i class="st c"></i> sesi coach</span>
+        <span><i class="ab on"></i> perut harian</span></p>
+      <p class="dnote">${M[m]}: ${gym} sesi kekuatan, ${perut} hari perut. Ketuk tanggal untuk membuka catatan hari itu.</p>
+    </div>`;
+  }
+
+  function histCard() {
+    const dm = dayMap();
+    const hari = Object.keys(dm).sort((a, b) => a < b ? 1 : -1).slice(0, 14);
+    if (!hari.length) return '';
+    return `<div class="panelcard">
+      <div class="pc-head"><h2>Riwayat sesi</h2></div>
+      ${hari.map(k => { const v = volOfDay(k), o = dm[k];
+        const jenis = [o.coach ? 'coach' : null, o.arete ? 'Areté' : null, o.abs ? 'perut' : null].filter(Boolean).join(' + ');
+        return `<button class="hrow" data-jump="${k}" type="button">
+          <span class="hd"><b>${D.UI.fmt(k)}</b><small>${jenis}</small></span>
+          <span class="hv">${v.sets} set${v.kg > 0 ? '<small>' + Math.round(v.kg).toLocaleString('id-ID') + ' kg</small>' : '<small>berat badan</small>'}</span>
+        </button>`; }).join('')}
+      <p class="dnote">Ketuk satu baris untuk membuka catatan hari itu di tab Sesi.</p>
+    </div>`;
+  }
+
+  function progresPanel() {
+    const t = D.UI.todayKey();
+    const w = volOfWeek(monOf(t)), wl = volOfWeek(shift(monOf(t), -7));
+    const mingguan = [];
+    for (let i = 11; i >= 0; i--) {
+      const mon = shift(monOf(t), -7 * i), v = volOfWeek(mon);
+      const d = new Date(mon + 'T00:00:00');
+      mingguan.push({ v: volMode === 'kg' ? v.kg : v.sets,
+                      x: i % 2 === 0 ? d.getDate() + '/' + (d.getMonth() + 1) : '',
+                      t: 'Minggu ' + D.UI.fmt(mon) });
+    }
+    const nm = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+    const harian = nm.map((n, i) => { const k = shift(monOf(t), i), v = volOfDay(k);
+      return { v: volMode === 'kg' ? v.kg : v.sets, x:n[0], t: D.UI.fmt(k) }; });
+
+    const kv = (k, v, u) => `<div class="rg"><div class="k">${k}</div><div class="v">${v}<span class="u">${u ? ' ' + u : ''}</span></div></div>`;
+    const beda = w.kg - wl.kg;
+    return `<div class="panelcard">
+      <div class="pc-head"><h2>Minggu ini</h2></div>
+      <div class="rgrid">
+        ${kv('Sesi kekuatan', w.gym + ' / ' + KUOTA, '')}
+        ${kv('Hari perut', w.perut + ' / 7', '')}
+        ${kv('Set', w.sets, '')}
+      </div>
+      <p class="dnote">${w.kg > 0
+        ? `Beban luar terangkat ${Math.round(w.kg).toLocaleString('id-ID')} kg. Minggu lalu ${Math.round(wl.kg).toLocaleString('id-ID')} kg, jadi ${beda >= 0 ? 'naik' : 'turun'} ${Math.abs(Math.round(beda)).toLocaleString('id-ID')} kg.`
+        : 'Belum ada beban luar tercatat minggu ini. Gerakan berat badan tetap dihitung di angka Set.'}</p>
+    </div>
+    <div class="panelcard">
+      <div class="pc-head"><h2>Volume</h2>
+        <div class="pchips sm" id="vol-mode">
+          <button data-vm="kg" aria-pressed="${volMode === 'kg'}" type="button">kg</button>
+          <button data-vm="set" aria-pressed="${volMode === 'set'}" type="button">set</button>
+        </div>
+      </div>
+      ${bars(harian, volMode, 'Harian, minggu ini', volMode === 'kg'
+        ? 'Belum ada beban luar tercatat minggu ini.' : 'Belum ada set tercatat minggu ini.')}
+      ${bars(mingguan, volMode, 'Mingguan, dua belas minggu terakhir',
+        'Belum ada yang tercatat dalam dua belas minggu terakhir.')}
+      <p class="dnote">${volMode === 'kg'
+        ? 'kg adalah beban luar dikali reps dikali set. Gerakan berat badan bernilai nol di sini, jadi hari yang isinya plank dan hanging leg raise akan terlihat kosong. Pindah ke set untuk melihatnya.'
+        : 'set menghitung semua kerja, termasuk gerakan berat badan, tapi tidak membedakan set ringan dan set berat. Dua satuan ini memang saling menutupi kelemahan.'}</p>
+    </div>
+    ${calCard()}
+    ${histCard()}`;
+  }
+
   /* ---------- ringkasan progres ---------- */
   function sumPanel() {
     const ids = Object.keys(CAT()).filter(id => hist(id).length >= 1);
@@ -1040,8 +1443,26 @@ window.TRAIN = (function () {
     return `<div class="card"><div class="card-head"><h2>Semua gerakan</h2></div>
       ${rows.map(r => `<div class="sumrow">
         <div class="nm">${esc(r.name)}<small>${r.r ? r.r.t.replace(/<\/?b>/g, '') : ''}</small></div>
-        <div class="v">${r.now}${r.unit ? ' ' + r.unit : ''}</div>
+        <div class="v">${String(r.now).replace('.', ',')}${r.unit ? ' ' + r.unit : ''}</div>
         <div class="stt ${r.st[0]}">${r.st[1]}</div></div>`).join('')}</div>`;
+  }
+
+  /* ---------- kartu ubah catatan ---------- */
+  function editSlots(saved) {
+    const punya = (saved ? (saved.items || []).map(x => x.id) : []).concat(extra);
+    const kartu = punya.map(id => exCard(id, saved)).join('');
+    const saran = cur.slots.reduce((a, s2) => a.concat(s2.ex), [])
+      .filter(id => punya.indexOf(id) < 0)
+      .filter((id, i, arr) => arr.indexOf(id) === i);
+    return `<div class="slot"><div class="slot-h"><span class="n">&#9998;</span><h2>Gerakan tercatat</h2>
+        <em>angkanya bisa diubah, centangnya bisa dibuka</em></div>${kartu || '<div class="tskip">Belum ada gerakan.</div>'}</div>
+      ${saran.length ? `<div class="slot"><div class="slot-h"><span class="n">+</span><h2>Tambah gerakan</h2>
+        <em>dari susunan Areté untuk hari ini</em></div>
+        <ul class="alts">${saran.map(id => { const e = byId(id) || {};
+          return `<li><button data-more="${id}" type="button">
+            <span><span class="an">${esc(e.n)}</span><span class="am">${esc(e.p || '')} &middot; pola ${e.pat}</span></span>
+            <span class="tag2 best">tambah</span></button></li>`; }).join('')}</ul>
+        <p class="dnote">Gerakan di luar daftar ini dicatat lewat kartu <b>Sesi coach</b> di atas, karena di sana kamu bisa mencari seluruh pustaka dan menambah gerakan baru.</p></div>` : ''}`;
   }
 
   /* ---------- render utama ---------- */
@@ -1051,19 +1472,39 @@ window.TRAIN = (function () {
     const root = $('.view[data-view="train"]');
     if (!root) return;
 
+    /* Ganti hari berarti buang isian yang belum disimpan, karena isian itu
+       milik hari sebelumnya. Hari yang sama berarti pungut dulu. */
+    if (lastSel !== sel) { live = {}; editSaved = false; extra = []; swap = {}; lastSel = sel; }
+    else snap();
+
     const saved = sessionOf(sel);
+    const rekam = !!(saved && saved.done) && !editSaved;
     cur = compose(sel, mus);
 
-    const nama = cur.slots[2].ex.length ? (byId(cur.slots[2].ex[0]) || {}).pat : null;
-    const nama2 = cur.slots[3].ex.length ? (byId(cur.slots[3].ex[0]) || {}).pat : null;
-    $('#tr-title').textContent = nama ? `Sesi ${nama}${nama2 ? ' dan ' + nama2 : ''}` : 'Sesi hari ini';
-    $('#tr-sub').textContent = D.UI.fmt(sel, true) + (saved && saved.done ? ' · sudah selesai' : '');
-    $('#tr-why').innerHTML = cur.why.length
-      ? cur.why.map(w => `<div class="adj"><i></i><p>${w}</p></div>`).join('')
-      : '';
+    let judul, ids;
+    if (rekam || editSaved) {
+      const pats = [];
+      (saved ? saved.items || [] : []).forEach(it => patsOf(it.id).forEach(pp => {
+        if (BIG.indexOf(pp) >= 0 && pats.indexOf(pp) < 0) pats.push(pp); }));
+      judul = editSaved ? 'Ubah catatan'
+            : (pats.length ? 'Sesi ' + pats.slice(0, 2).join(' dan ') : 'Sesi tersimpan');
+      ids = (saved ? (saved.items || []).map(it => it.id) : []).concat(extra);
+    } else {
+      const nama = cur.slots[2].ex.length ? (byId(cur.slots[2].ex[0]) || {}).pat : null;
+      const nama2 = cur.slots[3].ex.length ? (byId(cur.slots[3].ex[0]) || {}).pat : null;
+      judul = nama ? `Sesi ${nama}${nama2 ? ' dan ' + nama2 : ''}` : 'Sesi hari ini';
+      ids = cur.slots.reduce((a, s2) => a.concat(s2.ex.map(x => swap[x] || x)), []);
+    }
+    $('#tr-title').textContent = judul;
+    $('#tr-sub').textContent = D.UI.fmt(sel, true) + (rekam ? ' \u00b7 sudah selesai' : '');
 
-    /* peta otot sesi hari ini */
-    const ids = cur.slots.reduce((a, s2) => a.concat(s2.ex.map(x => swap[x] || x)), []);
+    const pl = $('#tr-plan'); if (pl) pl.innerHTML = planCard(sel);
+
+    $('#tr-why').innerHTML = (!rekam && !editSaved && cur.why.length)
+      ? cur.why.map(w => `<div class="adj"><i></i><p>${w}</p></div>`).join('') : '';
+
+    /* Peta otot. Di hari yang sudah tersimpan, yang digambar adalah apa yang
+       benar benar dikerjakan, bukan apa yang tadinya disarankan. */
     const heat = sessionHeat(ids);
     const hd = heatData(heat);
     const hEl = $('#tr-heat');
@@ -1072,22 +1513,47 @@ window.TRAIN = (function () {
       Muscle.paint($('#tr-heat-svg'), hd, 'all', null);
       $('#tr-heat-top').innerHTML = heatTop(heat).map(r =>
         `<span class="hchip" style="--hc:${Muscle.col(r.v)}">${r.label}</span>`).join('');
+      $('#tr-heat').querySelector('h2').textContent = rekam ? 'Otot yang kena tadi' : 'Otot yang kena hari ini';
     }
     $('#c-ring').innerHTML = ringkas(saved);
     $('#c-ring').hidden = !saved;
     $('#c-coach').innerHTML = coachCard(sel);
     $('#c-debt').innerHTML = debtCard(cur);
 
-    $('#tr-slots').innerHTML = cur.slots.map(s => {
-      const items = s.ex.map(id => exCard(id, saved ? (saved.items || []).find(x => x.id === (swap[id] || id)) : null)).join('');
-      return `<div class="slot">
-        <div class="slot-h"><span class="n">${s.n}</span><h2>${s.t}</h2><em>${s.d || ''}</em></div>
-        ${s.skip ? `<div class="tskip">${s.skip}</div>` : (items || `<div class="tskip">Tidak ada gerakan yang cocok untuk slot ini dengan alat yang tersedia.</div>`)}
+    /* Di hari pemulihan susunannya tidak dibuka sendiri. Kartu putusan di atas
+       jadi tidak sekadar hiasan: kalau semua gerakan tetap terhampar seperti
+       biasa, kalimat "hari pemulihan" tidak berarti apa apa. Tetap ada pintu
+       untuk melawan putusannya, karena yang tahu badannya kamu. */
+    const pl2 = plan(sel);
+    const tahan = pl2.s === 'pulih' && !rekam && !editSaved && !force[sel];
+    if (tahan) {
+      $('#tr-slots').innerHTML = `<div class="panelcard">
+        <div class="pc-head"><h2>Susunan sesi ditahan</h2></div>
+        <p class="tm2">Hari ini bukan hari sesi kekuatan, jadi gerakannya tidak dibuka. Yang tetap berjalan: <b>perut harian</b> di tab Harian, plus lari sesuai program coach-mu.</p>
+        <button class="btn ghost sm" data-force="1" type="button">Tetap latihan hari ini</button>
+        <p class="dnote">Kalau kamu buka, Areté tetap menyusun sesinya dan tetap mencatatnya. Angka kuota di atas ikut naik, jadi putusan besok menyesuaikan sendiri.</p>
       </div>`;
-    }).join('');
+    } else if (rekam) {
+      $('#tr-slots').innerHTML = recCard(saved);
+    } else if (editSaved) {
+      $('#tr-slots').innerHTML = editSlots(saved);
+    } else {
+      $('#tr-slots').innerHTML = cur.slots.map(s2 => {
+        const items = s2.ex.map(id => exCard(id, saved)).join('');
+        return `<div class="slot">
+          <div class="slot-h"><span class="n">${s2.n}</span><h2>${s2.t}</h2><em>${s2.d || ''}</em></div>
+          ${s2.skip ? `<div class="tskip">${s2.skip}</div>` : (items || `<div class="tskip">Tidak ada gerakan yang cocok untuk slot ini dengan alat yang tersedia.</div>`)}
+        </div>`;
+      }).join('');
+    }
 
-    $('#tr-save').textContent = saved && saved.done ? 'Sudah tersimpan, simpan ulang' : 'Simpan sesi';
+    const sv = $('#tr-save');
+    sv.hidden = rekam || tahan;
+    sv.textContent = editSaved ? 'Simpan perubahan' : 'Simpan sesi';
+    const bt = $('#tr-cancel'); if (bt) bt.hidden = !editSaved;
+
     $('#c-abs').innerHTML = absCard();
+    $('#tr-prog').innerHTML = progresPanel();
     $('#tr-sum').innerHTML = sumPanel();
     wire();
   }
@@ -1133,10 +1599,41 @@ window.TRAIN = (function () {
       const base = b.dataset.swap, to = b.dataset.to;
       if (to === base) delete swap[base]; else swap[base] = to;
       const diPerut = !!b.closest('#abs-slots');
+      snap();
       if (diPerut) { $('#c-abs').innerHTML = absCard(); wire(); }
       else refresh();
       const el = $('#tp-a-' + base); if (el) el.hidden = false;
     });
+
+    /* pindah hari dari kalender, strip minggu, dan riwayat */
+    $$('[data-jump]').forEach(b => b.onclick = () => {
+      if (D.goDay) D.goDay(b.dataset.jump);
+    });
+    $$('[data-cal]').forEach(b => b.onclick = () => {
+      calOff = Math.min(0, calOff + (+b.dataset.cal)); $('#tr-prog').innerHTML = progresPanel(); wire();
+    });
+    $$('#vol-mode button').forEach(b => b.onclick = () => {
+      volMode = b.dataset.vm; $('#tr-prog').innerHTML = progresPanel(); wire();
+    });
+
+    /* catatan sesi yang sudah selesai */
+    $$('[data-red]').forEach(b => b.onclick = () => {
+      editSaved = true;
+      if (b.dataset.red === 'add') extra = extra.slice();
+      refresh();
+      if (b.dataset.red === 'add') {
+        const el = $('#tr-slots .slot:last-child');
+        if (el) el.scrollIntoView({ block:'center' });
+      }
+    });
+    $$('[data-force]').forEach(b => b.onclick = () => { force[sel] = true; refresh(); });
+    $$('[data-more]').forEach(b => b.onclick = () => {
+      const id = b.dataset.more;
+      if (extra.indexOf(id) < 0) extra.push(id);
+      refresh();
+    });
+    const cb = $('#tr-cancel');
+    if (cb) cb.onclick = () => { editSaved = false; extra = []; live = {}; refresh(); };
 
     /* sesi coach */
     $$('#c-coach [data-cw]').forEach(b => b.onclick = async () => {
@@ -1216,6 +1713,7 @@ window.TRAIN = (function () {
     /* perut harian */
     $$('#abs-mode button').forEach(b => b.onclick = async () => {
       const a = absToday(sel); a.mode = b.dataset.am; a.u = cap(); st.abs[sel] = a;
+      snap();
       await persist(); $('#c-abs').innerHTML = absCard(); wire();
     });
     const av = $('#abs-save');
@@ -1242,8 +1740,8 @@ window.TRAIN = (function () {
       if (lama >= 0) st.sessions[lama] = rec; else st.sessions.push(rec);
       st.sessions.sort((a, b) => a.key < b.key ? -1 : 1);
       await persist();
-      flash(`Tersimpan. ${items.length} gerakan, ${items.reduce((a, x) => a + x.sets.length, 0)} set. Hitungan utang pola dan peta beban otot sudah ikut berubah.`);
-      swap = {};
+      flash(`Tersimpan. ${items.length} gerakan, ${items.reduce((a, x) => a + x.sets.length, 0)} set. Catatannya sekarang tampil di bawah, dan sesi hari ini tidak disusun ulang lagi.`);
+      swap = {}; live = {}; extra = []; editSaved = false;
       if (D.onChange) D.onChange();
       if (window.Sync) Sync.dorong();
     };
@@ -1312,7 +1810,7 @@ window.TRAIN = (function () {
   }
 
   return { init, load, render, sessionOf, allSessions, liftSessions, topDebt, debt, todayPatterns,
-           exportRows, importRows, exportSettings, importSettings,
+           exportRows, importRows, exportSettings, importSettings, resetRiwayat,
            renderGear, renderLib, PATS, EXTRA, GEAR, EX,
            /* dipakai uji otomatis, bukan oleh tampilan */
            _compose: compose, _holds: holds, _state: () => st, _hist: hist };
