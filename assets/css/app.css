@@ -1291,3 +1291,9 @@ main{flex:1;padding:14px var(--pad) 8px;width:100%}
 .rpel li{display:flex;gap:10px;align-items:flex-start;font-size:12px;line-height:1.5;color:var(--fg-2)}
 .rpel li b{flex:none;width:26px;height:22px;border-radius:7px;background:var(--accent-soft);color:var(--accent);
   display:grid;place-items:center;font-size:11px;font-weight:700}
+
+/* jangkar perut */
+.trainv .slot.anch{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);
+  padding:13px 13px 4px;margin-bottom:12px}
+.trainv .slot.anch .slot-h .n{background:var(--accent);color:#fff;border-color:var(--accent)}
+.trainv .slot.anch > .rx{margin:0 0 10px}

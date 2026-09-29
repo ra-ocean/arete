@@ -544,11 +544,26 @@ window.TRAIN = (function () {
      RIWAYAT DAN SARAN KENAIKAN
      Sarannya dihitung dari riwayatmu sendiri, bukan dari template.
      ============================================================ */
+  /* Riwayat satu gerakan. Sebelumnya fungsi ini cuma membaca st.sessions,
+     jadi seluruh kerja perut harian tidak pernah masuk hitungan: grafik
+     progres, estimasi 1RM, dan saran kenaikan selamanya berkata "belum ada
+     riwayat" untuk gerakan perut. Itu penyebab sesungguhnya kenapa menu perut
+     tidak punya progresi, bukan kurangnya gerakan. Sesi coach ikut dibaca,
+     karena angka yang kamu masukkan di sana juga kerja yang benar terjadi. */
   function hist(id) {
     const out = [];
-    st.sessions.slice().sort((a, b) => a.key < b.key ? -1 : 1).forEach(s => {
+    const sumber = st.sessions.map(x => ({ key:x.key, items:x.items, src:'arete' }))
+      .concat(Object.keys(st.abs).map(k => ({ key:k, items:(st.abs[k].items || []), src:'perut' })))
+      .concat(st.coach.map(x => ({ key:x.key, items:x.items, src:'coach' })));
+    sumber.sort((a, b) => a.key < b.key ? -1 : 1).forEach(s => {
       (s.items || []).forEach(it => {
-        if (it.id !== id || !it.sets || !it.sets.length) return;
+        if (it.id !== id) return;
+        /* Sesi coach disimpan sebagai satu baris ringkas, bukan per set. */
+        if (!it.sets || !it.sets.length) {
+          if (it.setsN) out.push({ key:s.key, w:+it.w || 0, r:+it.r || 0,
+                                   sets:it.setsN, rpe:null, src:s.src });
+          return;
+        }
         const done = it.sets.filter(x => x.done !== false && (x.w != null || x.r != null));
         if (!done.length) return;
         const w = Math.max.apply(null, done.map(x => +x.w || 0));
@@ -558,7 +573,7 @@ window.TRAIN = (function () {
            membuat sesi berat terbaca ringan. */
         const rp = done.map(rpeOf).filter(v => v != null);
         out.push({ key:s.key, w:w, r:r, sets:done.length,
-                   rpe: rp.length ? Math.max.apply(null, rp) : null });
+                   rpe: rp.length ? Math.max.apply(null, rp) : null, src:s.src });
       });
     });
     return out;
@@ -636,43 +651,94 @@ window.TRAIN = (function () {
      minggu supaya tidak itu itu saja.
      ============================================================ */
   const ABSREG = [
+    ['atas',  'Rectus atas',   'Menggulung dada ke arah panggul. Ini jangkar berbeban.'],
+    ['bawah', 'Rectus bawah',  'Menggulung panggul ke arah dada. Wilayah yang paling terakhir terlihat.'],
     ['anti',  'Anti-ekstensi', 'Menahan badan tidak melengkung. Ini yang dipakai perut saat lari.'],
-    ['bawah', 'Rectus bawah',  'Menggulung panggul ke arah dada.'],
-    ['atas',  'Rectus atas',   'Menggulung dada ke arah panggul.'],
-    ['rotasi','Oblique',       'Menahan dan menghasilkan putaran batang badan.']
+    ['rotasi','Oblique',       'Menahan putaran batang badan. Anti-rotasi, bukan side bend berbeban.']
   ];
   const HOMEGEAR = ['Bodyweight','Band','Matras'];
+
+  /* ------------------------------------------------------------
+     JANGKAR DAN PUTARAN
+     Rancangan lama memutar keempat gerakan setiap hari supaya tidak bosan.
+     Itu keliru: beban tidak bisa dinaikkan pada gerakan yang dikerjakan
+     sekali tiap lima hari, karena tidak ada pembanding yang cukup dekat.
+     Variasi harian justru musuh progresi.
+
+     Sekarang dua wilayah pertama dipegang gerakan tetap yang dinaikkan
+     bebannya tiap sesi, dan dua wilayah sisanya tetap berputar. Yang butuh
+     tumbuh dijaga tetap, yang butuh cakupan dibiarkan berganti.
+     ------------------------------------------------------------ */
+  const ANCHOR = {
+    atas:  ['cablecrunch', 'situp', 'vup'],
+    bawah: ['legraise', 'hangknee', 'revcrunch']
+  };
+  /* Tangga rectus bawah, dari mudah ke sulit. Tangga berikutnya dibuka
+     sesudah tangga sebelumnya dijalani empat sesi, sama seperti tangga
+     plyometrik. Hanging leg raise kaki lurus sebelum panggulnya bisa
+     digulung cuma akan jadi ayunan kaki dengan hip flexor. */
+  const ALADDER = ['revcrunch', 'hangknee', 'legraise'];
+  function absRung(mode) {
+    let lvl = 0;
+    for (let i = 0; i < ALADDER.length - 1; i++) {
+      const id = ALADDER[i];
+      if (hist(id).length >= 4 && absOk(ALADDER[i + 1], mode)) lvl = i + 1; else break;
+    }
+    return lvl;
+  }
+  const absOk = (id, mode) => {
+    const e = byId(id);
+    if (!e || !gearOk(id)) return false;
+    if (mode === 'home' && HOMEGEAR.indexOf(e.g) < 0) return false;
+    return true;
+  };
+
   function absPool(reg, mode) {
     const C = CAT();
-    return Object.keys(C).filter(id => {
-      const e = C[id];
-      if (e.abs !== reg) return false;
-      if (!gearOk(id)) return false;
-      if (mode === 'home' && HOMEGEAR.indexOf(e.g) < 0) return false;
-      return true;
-    }).sort((a, b) => {
-      /* Di gym, dahulukan gerakan yang bebannya bisa dinaikkan bertahap.
-         Itu satu satunya alasan mengerjakan perut di gym dan bukan di rumah. */
-      if (mode === 'gym') {
-        const berat = id => (HOMEGEAR.indexOf(C[id].g) < 0 ? 0 : 1);
-        if (berat(a) !== berat(b)) return berat(a) - berat(b);
-      }
-      return C[a].n.localeCompare(C[b].n);
-    });
+    return Object.keys(C).filter(id => C[id].abs === reg && absOk(id, mode))
+      .sort((a, b) => {
+        /* Di gym, dahulukan gerakan yang bebannya bisa dinaikkan bertahap.
+           Itu satu satunya alasan mengerjakan perut di gym dan bukan di rumah. */
+        if (mode === 'gym') {
+          const berat = id => (HOMEGEAR.indexOf(C[id].g) < 0 ? 0 : 1);
+          if (berat(a) !== berat(b)) return berat(a) - berat(b);
+        }
+        return C[a].n.localeCompare(C[b].n);
+      });
   }
   function absToday(key) {
     const a = st.abs[key] || { mode:'home', items:[] };
     if (!a.items) a.items = [];
     return a;
   }
-  /* Gerakan berputar menurut hari, jadi stabil dalam satu hari tapi
-     berbeda dari hari ke hari. */
+
+  /* Dua jangkar tetap, dua wilayah berputar menurut hari. */
   function absPick(key, mode) {
     const n = dayNum(key);
-    return ABSREG.map(([reg]) => {
-      const pool = absPool(reg, mode);
-      return pool.length ? pool[n % pool.length] : null;
-    }).filter(Boolean);
+    const out = [];
+    const atas = ANCHOR.atas.filter(id => absOk(id, mode))[0]
+              || absPool('atas', mode)[0] || null;
+    const bawah = (() => {
+      const r = absRung(mode);
+      for (let i = r; i >= 0; i--) if (absOk(ALADDER[i], mode)) return ALADDER[i];
+      return absPool('bawah', mode)[0] || null;
+    })();
+    out.push({ reg:'atas',  id:atas,  anchor:true });
+    out.push({ reg:'bawah', id:bawah, anchor:true });
+    ['anti', 'rotasi'].forEach(reg => {
+      const pool = absPool(reg, mode).filter(id => id !== atas && id !== bawah);
+      if (pool.length) out.push({ reg:reg, id:pool[n % pool.length], anchor:false });
+    });
+    return out.filter(x => x.id);
+  }
+  /* Naik tingkat tangga bawah baru terbuka kalau syaratnya sudah lewat. */
+  function absLadderNote(mode) {
+    const r = absRung(mode), id = ALADDER[r], nx = ALADDER[r + 1];
+    if (!nx) return `Kamu sudah di tingkat teratas tangga rectus bawah. Dari sini yang naik bebannya, bukan gerakannya.`;
+    const n = hist(id).length;
+    if (!absOk(nx, mode))
+      return `Tingkat berikutnya, <b>${(byId(nx) || {}).n}</b>, butuh alat yang sedang ditandai tidak tersedia${mode === 'home' ? ' atau tidak ada di rumah' : ''}.`;
+    return `Tingkat berikutnya, <b>${(byId(nx) || {}).n}</b>, terbuka sesudah <b>${(byId(id) || {}).n}</b> tercatat ${Math.max(0, 4 - n)} sesi lagi.`;
   }
 
   /* ============================================================
@@ -752,7 +818,8 @@ window.TRAIN = (function () {
     }).join('');
     return `<div class="wkstrip">${cells}</div>
       <p class="wklg"><span><b class="mk a">A</b> sesi Areté</span><span><b class="mk c">C</b> sesi coach</span>
-        <span><i class="pr on"></i> perut harian</span><span>${gym} dari ${KUOTA} sesi kekuatan ${iniMinggu ? 'minggu ini' : 'di minggu itu'}</span></p>`;
+        <span><i class="pr on"></i> perut harian</span>
+        <span>${gym} dari ${KUOTA} sesi kekuatan ${iniMinggu ? 'minggu ini' : 'di minggu itu'}</span></p>`;
   }
 
   function planCard(key) {
@@ -1130,26 +1197,31 @@ window.TRAIN = (function () {
   /* ---------- menu perut harian ---------- */
   function absCard() {
     const a = absToday(sel);
-    const ids = absPick(sel, a.mode);
+    const picks = absPick(sel, a.mode);
     const sudah = (a.items || []).length;
+    const REG = {}; ABSREG.forEach(r => REG[r[0]] = r);
     return `<div class="pc-head"><h2>Perut harian</h2><span class="pc-hint">${sudah ? sudah + ' tercatat' : 'belum dicatat'}</span></div>
-      <p class="tm2">Perut punya empat tugas yang berbeda, dan sesi yang cuma plank dan sit-up melewatkan dua di antaranya. Tiap hari satu gerakan per wilayah, dan gerakannya berputar sepanjang minggu.</p>
+      <p class="tm2">Dua gerakan pertama <b>tetap setiap sesi</b> supaya bebannya bisa dinaikkan, karena itu satu satunya cara otot perut menebal. Dua gerakan terakhir berputar, supaya keempat tugas perut tetap kena.</p>
       <div class="msrc" id="abs-mode">
         <button data-am="home" aria-pressed="${a.mode === 'home'}" type="button">Di rumah</button>
         <button data-am="gym" aria-pressed="${a.mode === 'gym'}" type="button">Di gym</button>
       </div>
       ${rpeNote()}
-      <div id="abs-slots">${ids.map((id, k) => {
-        const reg = ABSREG[k] || ABSREG[0];
-        return `<div class="slot">
-          <div class="slot-h"><span class="n">${k + 1}</span><h2>${reg[1]}</h2></div>
+      <div id="abs-slots">${picks.map((x, k) => {
+        const reg = REG[x.reg] || ABSREG[0];
+        const r = x.anchor ? rx(x.id) : null;
+        return `<div class="slot${x.anchor ? ' anch' : ''}">
+          <div class="slot-h"><span class="n">${k + 1}</span><h2>${reg[1]}</h2>
+            <em>${x.anchor ? 'jangkar, tetap' : 'berputar'}</em></div>
           <p class="tm" style="margin:-4px 0 8px 2px">${reg[2]}</p>
-          ${exCard(id, { items: a.items || [] })}
+          ${r ? `<div class="rx${r.ok ? '' : ' hold'}"><b>Saran hari ini.</b> ${r.t}</div>` : ''}
+          ${exCard(x.id, { items: a.items || [] })}
+          ${x.reg === 'bawah' ? `<p class="dnote">${absLadderNote(a.mode)}</p>` : ''}
         </div>`;
       }).join('')}</div>
       <button class="btn" id="abs-save" type="button">Simpan sesi harian</button>
       <div class="msg" id="abs-msg"></div>
-      <p class="dnote">Perut masuk sebagai pola Core. Begitu tersimpan, hitungan utang Core ikut direset dan beban perut muncul di peta otot.</p>`;
+      <p class="dnote">Perut masuk sebagai pola Core, jadi begitu tersimpan hitungan utang Core ikut direset dan bebannya muncul di peta otot. Tiga sampai empat kali seminggu sudah cukup. Perut memang cepat pulih, tapi tetap butuh pulih, dan set yang nyaman tidak menumbuhkan apa apa.</p>`;
   }
 
   /* ============================================================
@@ -1813,5 +1885,6 @@ window.TRAIN = (function () {
            exportRows, importRows, exportSettings, importSettings, resetRiwayat,
            renderGear, renderLib, PATS, EXTRA, GEAR, EX,
            /* dipakai uji otomatis, bukan oleh tampilan */
-           _compose: compose, _holds: holds, _state: () => st, _hist: hist };
+           _compose: compose, _holds: holds, _state: () => st, _hist: hist,
+           _absPick: absPick, _absRung: absRung, _plan: plan };
 })();
